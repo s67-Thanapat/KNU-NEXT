@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KMUTNB NEXT - Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        kmutnb: {
+                            main: '#EE3F0B', /* สีส้มแดง มจพ. */
+                            gray: '#6B7280',
+                            faint: '#F3F4F6'  /* สีเทาจางสำหรับตัวหนังสือข้างๆ */
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Prompt', 'sans-serif'],
+                    },
+                    animation: {
+                        'fade-in-up': 'fadeInUp 0.6s ease-out forwards',
+                    },
+                    keyframes: {
+                        fadeInUp: {
+                            '0%': { opacity: '0', transform: 'translateY(10px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .hidden-screen {
+            display: none;
+        }
+        /* Styling for the side vertical text */
+        .side-text {
+            font-weight: 900;
+            color: #F3F4F6; /* สีเทาจางๆ */
+            line-height: 1;
+            user-select: none; /* ห้ามคลุมดำ */
+        }
+    </style>
+</head>
+<body class="bg-white font-sans text-gray-700 h-screen flex flex-col items-center justify-center relative overflow-hidden">
+
+    <div class="absolute left-0 top-0 h-full flex flex-col justify-center items-center pl-2 md:pl-8 z-0 pointer-events-none">
+        <span class="side-text text-[4rem] md:text-[6rem]">K</span>
+        <span class="side-text text-[4rem] md:text-[6rem]">M</span>
+        <span class="side-text text-[4rem] md:text-[6rem]">U</span>
+        <span class="side-text text-[4rem] md:text-[6rem]">T</span>
+        <span class="side-text text-[4rem] md:text-[6rem]">N</span>
+        <span class="side-text text-[4rem] md:text-[6rem]">B</span>
+    </div>
+
+    <div class="absolute right-0 top-0 h-full flex flex-col justify-center items-center pr-2 md:pr-8 z-0 pointer-events-none">
+        <span class="side-text text-[4rem] md:text-[6rem]">N</span>
+        <span class="side-text text-[4rem] md:text-[6rem]">E</span>
+        <span class="side-text text-[4rem] md:text-[6rem]">X</span>
+        <span class="side-text text-[4rem] md:text-[6rem]">T</span>
+    </div>
+
+    <main id="app-container" class="w-full max-w-sm px-6 flex flex-col items-center z-10 relative">
+        
+        <div class="mb-10 text-center animate-fade-in-up">
+            <div class="mb-4">
+                <img src="https://upload.wikimedia.org/wikipedia/th/7/7b/Emblem_of_King_Mongkut%27s_University_of_Technology_North_Bangkok.png" 
+                     alt="KMUTNB Logo" 
+                     class="w-28 mx-auto drop-shadow-sm">
+            </div>
+            
+            <h1 class="text-3xl font-bold tracking-wide mt-2">
+                <span class="text-kmutnb-main">KMUTNB</span> <span class="text-gray-500">NEXT</span>
+            </h1>
+        </div>
+
+        <div id="screen-language" class="w-full text-center animate-fade-in-up">
+            <button onclick="goToUserType('th')" class="w-full bg-gradient-to-r from-kmutnb-main to-orange-500 text-white font-medium text-lg py-3 rounded-full shadow-md hover:shadow-orange-500/30 hover:scale-105 transition-all duration-300 mb-4">
+                เข้าใช้งานภาษาไทย
+            </button>
+            <button onclick="goToUserType('en')" class="w-full bg-gray-100 text-gray-600 font-medium text-lg py-3 rounded-full hover:bg-gray-200 hover:scale-105 transition-all duration-300">
+                Continue in English
+            </button>
+        </div>
+
+        <div id="screen-user-type" class="hidden-screen w-full text-center animate-fade-in-up">
+            <h2 class="text-xl font-medium text-gray-800 mb-2">ยินดีต้อนรับ</h2>
+            <p class="text-gray-500 mb-8 text-sm">กรุณาเลือกประเภทผู้ใช้งาน</p>
+
+            <button onclick="goToLogin('student')" class="w-full bg-gradient-to-r from-kmutnb-main to-orange-500 text-white font-medium text-lg py-3 rounded-full shadow-md hover:shadow-orange-500/30 hover:scale-105 transition-all duration-300 mb-4">
+                เข้าใช้งานสำหรับนักศึกษา
+            </button>
+            
+            <button onclick="goToLogin('public')" class="w-full bg-white border-2 border-gray-200 text-gray-600 font-medium text-lg py-3 rounded-full hover:border-kmutnb-main hover:text-kmutnb-main transition-all duration-300">
+                เข้าใช้งานสำหรับบุคคลทั่วไป
+            </button>
+            
+            <div class="mt-6">
+                 <button onclick="goBack('screen-language')" class="text-sm text-gray-400 hover:text-kmutnb-main"><i class="fa-solid fa-arrow-left"></i> ย้อนกลับ</button>
+            </div>
+        </div>
+
+        <div id="screen-login-student" class="hidden-screen w-full animate-fade-in-up">
+            <div class="text-center mb-8">
+                <h2 class="text-lg font-medium text-gray-600">กรอกรหัสบัตรประชาชน</h2>
+                <h2 class="text-lg font-medium text-gray-600">หรือ รหัสนักศึกษา</h2>
+            </div>
+
+            <div class="relative mb-10">
+                <input type="text" class="w-full py-2 text-center text-lg text-gray-800 bg-transparent border-b-2 border-gray-200 focus:border-kmutnb-main focus:outline-none placeholder-gray-300 transition-colors duration-300" placeholder="รหัส ปชช. / รหัสนักศึกษา">
+            </div>
+
+            <div class="flex flex-col items-center">
+                <button onclick="alert('กำลังเข้าสู่ระบบนักศึกษา...')" class="w-full bg-gradient-to-r from-kmutnb-main to-orange-500 text-white font-medium text-lg py-3 rounded-full shadow-md hover:shadow-orange-500/30 hover:scale-105 transition-all duration-300 mb-4">
+                    ถัดไป
+                </button>
+                <button onclick="goBack('screen-user-type')" class="text-sm text-gray-400 hover:text-kmutnb-main mt-2"><i class="fa-solid fa-arrow-left"></i> เปลี่ยนประเภทผู้ใช้</button>
+            </div>
+        </div>
+
+        <div id="screen-login-public" class="hidden-screen w-full animate-fade-in-up">
+            <div class="text-center mb-8">
+                <h2 class="text-lg font-medium text-gray-600">เข้าสู่ระบบด้วย</h2>
+                <h2 class="text-lg font-medium text-gray-600">เบอร์โทรศัพท์ หรือ Email</h2>
+            </div>
+
+            <div class="relative mb-10">
+                <input type="text" class="w-full py-2 text-center text-lg text-gray-800 bg-transparent border-b-2 border-gray-200 focus:border-kmutnb-main focus:outline-none placeholder-gray-300 transition-colors duration-300" placeholder="เบอร์โทร / Email">
+            </div>
+
+            <div class="flex flex-col items-center space-y-3">
+                <button onclick="alert('กำลังเข้าสู่ระบบบุคคลทั่วไป...')" class="w-full bg-gradient-to-r from-kmutnb-main to-orange-500 text-white font-medium text-lg py-3 rounded-full shadow-md hover:shadow-orange-500/30 hover:scale-105 transition-all duration-300">
+                    เข้าสู่ระบบ
+                </button>
+                
+                <div class="text-sm text-gray-500 mt-2">
+                    ยังไม่มีบัญชีใช่ไหม? 
+                    <a href="#" onclick="alert('ไปหน้าสมัครสมาชิก...')" class="text-kmutnb-main font-bold hover:underline">สมัครบัญชี</a>
+                </div>
+
+                <button onclick="goBack('screen-user-type')" class="text-sm text-gray-400 hover:text-kmutnb-main mt-4"><i class="fa-solid fa-arrow-left"></i> เปลี่ยนประเภทผู้ใช้</button>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        function hideAllScreens() {
+            const screens = ['screen-language', 'screen-user-type', 'screen-login-student', 'screen-login-public'];
+            screens.forEach(id => {
+                document.getElementById(id).classList.add('hidden-screen');
+                document.getElementById(id).classList.remove('animate-fade-in-up'); 
+            });
+        }
+
+        function showScreen(screenId) {
+            hideAllScreens();
+            const screen = document.getElementById(screenId);
+            screen.classList.remove('hidden-screen');
+            void screen.offsetWidth; 
+            screen.classList.add('animate-fade-in-up');
+        }
+
+        function goToUserType(lang) {
+            showScreen('screen-user-type');
+        }
+
+        function goToLogin(type) {
+            if (type === 'student') {
+                showScreen('screen-login-student');
+            } else if (type === 'public') {
+                showScreen('screen-login-public');
+            }
+        }
+
+        function goBack(targetScreenId) {
+            showScreen(targetScreenId);
+        }
+    </script>
+</body>
+</html>
