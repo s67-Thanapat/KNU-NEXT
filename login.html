@@ -3,9 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KMUTNB NEXT - Login</title>
+    <title>เข้าสู่ระบบ - KMUTNB NEXT</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <script>
@@ -13,20 +15,12 @@
             theme: {
                 extend: {
                     colors: {
-                        kmutnb: {
-                            main: '#EE3F0B', /* สีส้มแดง มจพ. */
-                            gray: '#6B7280',
-                            faint: '#F3F4F6'  /* สีเทาจางสำหรับตัวหนังสือข้างๆ */
-                        }
+                        kmutnb: { main: '#EE3F0B', light: '#FF6B42' }
                     },
-                    fontFamily: {
-                        sans: ['Prompt', 'sans-serif'],
-                    },
-                    animation: {
-                        'fade-in-up': 'fadeInUp 0.6s ease-out forwards',
-                    },
+                    fontFamily: { sans: ['Prompt', 'sans-serif'] },
+                    animation: { 'fade-in': 'fadeIn 0.5s ease-out forwards' },
                     keyframes: {
-                        fadeInUp: {
+                        fadeIn: {
                             '0%': { opacity: '0', transform: 'translateY(10px)' },
                             '100%': { opacity: '1', transform: 'translateY(0)' },
                         }
@@ -35,152 +29,172 @@
             }
         }
     </script>
-    <style>
-        .hidden-screen {
-            display: none;
-        }
-        /* Styling for the side vertical text */
-        .side-text {
-            font-weight: 900;
-            color: #F3F4F6; /* สีเทาจางๆ */
-            line-height: 1;
-            user-select: none; /* ห้ามคลุมดำ */
-        }
-    </style>
 </head>
-<body class="bg-white font-sans text-gray-700 h-screen flex flex-col items-center justify-center relative overflow-hidden">
+<body class="bg-gray-50 h-screen w-full relative overflow-hidden font-sans">
 
-    <div class="absolute left-0 top-0 h-full flex flex-col justify-center items-center pl-2 md:pl-8 z-0 pointer-events-none">
-        <span class="side-text text-[4rem] md:text-[6rem]">K</span>
-        <span class="side-text text-[4rem] md:text-[6rem]">M</span>
-        <span class="side-text text-[4rem] md:text-[6rem]">U</span>
-        <span class="side-text text-[4rem] md:text-[6rem]">T</span>
-        <span class="side-text text-[4rem] md:text-[6rem]">N</span>
-        <span class="side-text text-[4rem] md:text-[6rem]">B</span>
+    <div class="absolute inset-0 z-0">
+        <img src="https://images.unsplash.com/photo-1541339907198-e08756dedf3f?ixlib=rb-1.2.1&auto=format&fit=crop&w=1920&q=80" 
+             class="w-full h-full object-cover filter blur-[2px] brightness-50">
     </div>
 
-    <div class="absolute right-0 top-0 h-full flex flex-col justify-center items-center pr-2 md:pr-8 z-0 pointer-events-none">
-        <span class="side-text text-[4rem] md:text-[6rem]">N</span>
-        <span class="side-text text-[4rem] md:text-[6rem]">E</span>
-        <span class="side-text text-[4rem] md:text-[6rem]">X</span>
-        <span class="side-text text-[4rem] md:text-[6rem]">T</span>
-    </div>
-
-    <main id="app-container" class="w-full max-w-sm px-6 flex flex-col items-center z-10 relative">
+    <div class="relative z-10 flex flex-col justify-end md:justify-center items-center h-full pb-10 md:pb-0 px-6">
         
-        <div class="mb-10 text-center animate-fade-in-up">
-            <div class="mb-4">
-                <img src="https://upload.wikimedia.org/wikipedia/th/7/7b/Emblem_of_King_Mongkut%27s_University_of_Technology_North_Bangkok.png" 
-                     alt="KMUTNB Logo" 
-                     class="w-28 mx-auto drop-shadow-sm">
-            </div>
+        <div class="bg-white/95 backdrop-blur-sm p-8 rounded-3xl shadow-2xl w-full max-w-sm md:max-w-md text-center transform transition-all duration-500 hover:scale-[1.01]">
             
-            <h1 class="text-3xl font-bold tracking-wide mt-2">
-                <span class="text-kmutnb-main">KMUTNB</span> <span class="text-gray-500">NEXT</span>
-            </h1>
-        </div>
-
-        <div id="screen-language" class="w-full text-center animate-fade-in-up">
-            <button onclick="goToUserType('th')" class="w-full bg-gradient-to-r from-kmutnb-main to-orange-500 text-white font-medium text-lg py-3 rounded-full shadow-md hover:shadow-orange-500/30 hover:scale-105 transition-all duration-300 mb-4">
-                เข้าใช้งานภาษาไทย
-            </button>
-            <button onclick="goToUserType('en')" class="w-full bg-gray-100 text-gray-600 font-medium text-lg py-3 rounded-full hover:bg-gray-200 hover:scale-105 transition-all duration-300">
-                Continue in English
-            </button>
-        </div>
-
-        <div id="screen-user-type" class="hidden-screen w-full text-center animate-fade-in-up">
-            <h2 class="text-xl font-medium text-gray-800 mb-2">ยินดีต้อนรับ</h2>
-            <p class="text-gray-500 mb-8 text-sm">กรุณาเลือกประเภทผู้ใช้งาน</p>
-
-            <button onclick="goToLogin('student')" class="w-full bg-gradient-to-r from-kmutnb-main to-orange-500 text-white font-medium text-lg py-3 rounded-full shadow-md hover:shadow-orange-500/30 hover:scale-105 transition-all duration-300 mb-4">
-                เข้าใช้งานสำหรับนักศึกษา
-            </button>
-            
-            <button onclick="goToLogin('public')" class="w-full bg-white border-2 border-gray-200 text-gray-600 font-medium text-lg py-3 rounded-full hover:border-kmutnb-main hover:text-kmutnb-main transition-all duration-300">
-                เข้าใช้งานสำหรับบุคคลทั่วไป
-            </button>
-            
-            <div class="mt-6">
-                 <button onclick="goBack('screen-language')" class="text-sm text-gray-400 hover:text-kmutnb-main"><i class="fa-solid fa-arrow-left"></i> ย้อนกลับ</button>
-            </div>
-        </div>
-
-        <div id="screen-login-student" class="hidden-screen w-full animate-fade-in-up">
-            <div class="text-center mb-8">
-                <h2 class="text-lg font-medium text-gray-600">กรอกรหัสบัตรประชาชน</h2>
-                <h2 class="text-lg font-medium text-gray-600">หรือ รหัสนักศึกษา</h2>
+            <div class="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-lg overflow-hidden border-4 border-orange-50 mb-4 mx-auto">
+                <img src="LOGO-KMUTNB.png" class="w-full h-full object-cover p-1">
             </div>
 
-            <div class="relative mb-10">
-                <input type="text" class="w-full py-2 text-center text-lg text-gray-800 bg-transparent border-b-2 border-gray-200 focus:border-kmutnb-main focus:outline-none placeholder-gray-300 transition-colors duration-300" placeholder="รหัส ปชช. / รหัสนักศึกษา">
-            </div>
+            <h1 class="text-2xl font-bold text-gray-800 mb-1">KMUTNB NEXT</h1>
+            <p class="text-gray-500 text-sm mb-6">ระบบสารสนเทศเพื่องานบริการการศึกษา</p>
 
-            <div class="flex flex-col items-center">
-                <button onclick="alert('กำลังเข้าสู่ระบบนักศึกษา...')" class="w-full bg-gradient-to-r from-kmutnb-main to-orange-500 text-white font-medium text-lg py-3 rounded-full shadow-md hover:shadow-orange-500/30 hover:scale-105 transition-all duration-300 mb-4">
-                    ถัดไป
-                </button>
-                <button onclick="goBack('screen-user-type')" class="text-sm text-gray-400 hover:text-kmutnb-main mt-2"><i class="fa-solid fa-arrow-left"></i> เปลี่ยนประเภทผู้ใช้</button>
-            </div>
-        </div>
+            <div id="screen-selection" class="animate-fade-in">
+                <div class="space-y-3">
+                    <button onclick="showScreen('screen-student')" class="w-full bg-kmutnb-main hover:bg-orange-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-orange-200 transition-all active:scale-95 flex items-center justify-center gap-3">
+                        <i class="fa-solid fa-user-graduate"></i>
+                        <span>นักศึกษา / บุคลากร</span>
+                    </button>
 
-        <div id="screen-login-public" class="hidden-screen w-full animate-fade-in-up">
-            <div class="text-center mb-8">
-                <h2 class="text-lg font-medium text-gray-600">เข้าสู่ระบบด้วย</h2>
-                <h2 class="text-lg font-medium text-gray-600">เบอร์โทรศัพท์ หรือ Email</h2>
-            </div>
-
-            <div class="relative mb-10">
-                <input type="text" class="w-full py-2 text-center text-lg text-gray-800 bg-transparent border-b-2 border-gray-200 focus:border-kmutnb-main focus:outline-none placeholder-gray-300 transition-colors duration-300" placeholder="เบอร์โทร / Email">
-            </div>
-
-            <div class="flex flex-col items-center space-y-3">
-                <button onclick="alert('กำลังเข้าสู่ระบบบุคคลทั่วไป...')" class="w-full bg-gradient-to-r from-kmutnb-main to-orange-500 text-white font-medium text-lg py-3 rounded-full shadow-md hover:shadow-orange-500/30 hover:scale-105 transition-all duration-300">
-                    เข้าสู่ระบบ
-                </button>
+                    <button onclick="loginGuest()" class="w-full bg-white hover:bg-gray-50 text-gray-700 font-bold py-3.5 px-4 rounded-xl border-2 border-gray-200 transition-all active:scale-95 flex items-center justify-center gap-3">
+                        <i class="fa-solid fa-users"></i>
+                        <span>บุคคลทั่วไป (Guest)</span>
+                    </button>
+                </div>
                 
-                <div class="text-sm text-gray-500 mt-2">
-                    ยังไม่มีบัญชีใช่ไหม? 
-                    <a href="#" onclick="alert('ไปหน้าสมัครสมาชิก...')" class="text-kmutnb-main font-bold hover:underline">สมัครบัญชี</a>
+                <div class="mt-8 flex justify-between text-xs text-gray-400">
+                    <a href="#" class="hover:text-kmutnb-main">ลืมรหัสผ่าน?</a>
+                    <a href="#" class="hover:text-kmutnb-main">คู่มือการใช้งาน</a>
+                </div>
+            </div>
+
+            <div id="screen-student" class="hidden animate-fade-in text-left">
+                <div class="mb-4 text-center">
+                    <span class="text-kmutnb-main font-bold text-sm bg-orange-50 px-3 py-1 rounded-full">สำหรับนักศึกษา / บุคลากร</span>
+                </div>
+                
+                <div id="error-msg" class="hidden bg-red-100 text-red-600 text-sm p-2 rounded-lg mb-4 text-center">
+                    <i class="fa-solid fa-circle-exclamation mr-1"></i> ไม่พบข้อมูล หรือ รหัสผ่านผิด
                 </div>
 
-                <button onclick="goBack('screen-user-type')" class="text-sm text-gray-400 hover:text-kmutnb-main mt-4"><i class="fa-solid fa-arrow-left"></i> เปลี่ยนประเภทผู้ใช้</button>
-            </div>
-        </div>
+                <div class="space-y-4 mb-6">
+                    <div class="relative group">
+                        <div class="absolute top-3 left-3 text-gray-400 group-focus-within:text-kmutnb-main transition-colors">
+                            <i class="fa-regular fa-id-card text-lg"></i>
+                        </div>
+                        <input type="text" id="std-username" class="w-full py-3 pl-10 pr-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-kmutnb-main focus:ring-1 focus:ring-kmutnb-main focus:outline-none transition-all" placeholder="รหัสนักศึกษา / Username">
+                    </div>
 
-    </main>
+                    <div class="relative group">
+                        <div class="absolute top-3 left-3 text-gray-400 group-focus-within:text-kmutnb-main transition-colors">
+                            <i class="fa-solid fa-lock text-lg"></i>
+                        </div>
+                        <input type="password" id="std-password" class="w-full py-3 pl-10 pr-4 bg-gray-50 border border-gray-200 rounded-xl focus:border-kmutnb-main focus:ring-1 focus:ring-kmutnb-main focus:outline-none transition-all" placeholder="รหัสผ่าน">
+                    </div>
+                </div>
+
+                <button onclick="loginWithSupabase()" id="btn-login" class="w-full bg-kmutnb-main hover:bg-orange-700 text-white font-bold py-3 px-4 rounded-xl shadow-md transition-all active:scale-95 mb-3">
+                    เข้าสู่ระบบ
+                </button>
+                <button onclick="showScreen('screen-selection')" class="w-full text-gray-400 hover:text-gray-600 text-sm py-2">
+                    <i class="fa-solid fa-arrow-left mr-1"></i> ย้อนกลับ
+                </button>
+            </div>
+
+        </div>
+        <p class="text-white/60 text-[10px] mt-6 font-light">© 2024 King Mongkut's University of Technology North Bangkok</p>
+    </div>
 
     <script>
-        function hideAllScreens() {
-            const screens = ['screen-language', 'screen-user-type', 'screen-login-student', 'screen-login-public'];
-            screens.forEach(id => {
-                document.getElementById(id).classList.add('hidden-screen');
-                document.getElementById(id).classList.remove('animate-fade-in-up'); 
-            });
-        }
+        // --------------------------------------------------------
+        // TODO: ใส่ค่า API Supabase ของคุณตรงนี้
+        // --------------------------------------------------------
+        const SUPABASE_URL = 'https://hcjquegorteantfzckpf.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_3bK3c4hh7hu37K0XxCzXVA_-5rJH89L'; 
+        // --------------------------------------------------------
 
+        // แก้ชื่อตัวแปรจาก supabase เป็น supabaseClient เพื่อป้องกันชื่อชนกัน
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // เคลียร์ session เก่า
+        sessionStorage.clear();
+
+        // ฟังก์ชันสลับหน้าจอ
         function showScreen(screenId) {
-            hideAllScreens();
-            const screen = document.getElementById(screenId);
-            screen.classList.remove('hidden-screen');
-            void screen.offsetWidth; 
-            screen.classList.add('animate-fade-in-up');
-        }
-
-        function goToUserType(lang) {
-            showScreen('screen-user-type');
-        }
-
-        function goToLogin(type) {
-            if (type === 'student') {
-                showScreen('screen-login-student');
-            } else if (type === 'public') {
-                showScreen('screen-login-public');
+            document.getElementById('screen-selection').classList.add('hidden');
+            document.getElementById('screen-student').classList.add('hidden');
+            document.getElementById('error-msg').classList.add('hidden');
+            
+            const target = document.getElementById(screenId);
+            if (target) {
+                target.classList.remove('hidden');
+                target.classList.remove('animate-fade-in');
+                void target.offsetWidth; // Trigger reflow
+                target.classList.add('animate-fade-in');
             }
         }
 
-        function goBack(targetScreenId) {
-            showScreen(targetScreenId);
+        // ฟังก์ชัน Login ด้วย Supabase
+        async function loginWithSupabase() {
+            const u = document.getElementById('std-username').value.trim();
+            const p = document.getElementById('std-password').value.trim();
+            const btn = document.getElementById('btn-login');
+            const errorDiv = document.getElementById('error-msg');
+
+            if (!u || !p) {
+                alert('กรุณากรอกข้อมูลให้ครบถ้วน');
+                return;
+            }
+
+            // UI Loading state
+            const originalText = btn.innerText;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> กำลังตรวจสอบ...';
+            btn.disabled = true;
+            errorDiv.classList.add('hidden');
+
+            try {
+                // เรียกใช้ supabaseClient แทน
+                const { data, error } = await supabaseClient
+                    .from('users')
+                    .select('*')
+                    .eq('username', u)
+                    .eq('password', p)
+                    .single();
+
+                if (error || !data) {
+                    throw new Error('User not found');
+                }
+
+                // Login สำเร็จ
+                sessionStorage.setItem('isLoggedIn', 'true');
+                sessionStorage.setItem('userType', 'student'); 
+                sessionStorage.setItem('userData', JSON.stringify(data));
+
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 500);
+
+            } catch (err) {
+                console.error("Login Error:", err);
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                errorDiv.classList.remove('hidden'); // แสดงข้อความ error
+                
+                // สั่นกล่อง Login
+                const card = document.querySelector('.bg-white\\/95');
+                card.classList.add('animate-pulse');
+                setTimeout(() => card.classList.remove('animate-pulse'), 500);
+            }
+        }
+
+        // ฟังก์ชัน Login Guest
+        function loginGuest() {
+            const btn = event.currentTarget;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> กำลังเข้าสู่ระบบ...';
+            setTimeout(() => {
+                sessionStorage.setItem('isLoggedIn', 'true');
+                sessionStorage.setItem('userType', 'guest');
+                window.location.href = 'index.html';
+            }, 800);
         }
     </script>
 </body>
