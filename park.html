@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KMUTNB Parking - ที่จอดรถ</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        kmutnb: { main: '#EE3F0B', light: '#FF6B42' }
+                    },
+                    fontFamily: { sans: ['Prompt', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { font-family: 'Prompt', sans-serif; }
+        #map { height: calc(100vh - 64px); width: 100%; z-index: 0; }
+        
+        /* Custom Marker Style */
+        .custom-pin {
+            background-color: white;
+            border-radius: 50%;
+            border: 2px solid #EE3F0B;
+            text-align: center;
+            color: #EE3F0B;
+            font-size: 16px;
+            padding-top: 4px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: transform 0.2s;
+        }
+        .custom-pin:hover {
+            transform: scale(1.1);
+            background-color: #EE3F0B;
+            color: white;
+            border-color: white;
+        }
+        .pin-full { border-color: #EF4444; color: #EF4444; } 
+        .pin-full:hover { background-color: #EF4444; color: white; }
+
+        /* บังคับลิงก์ใน Popup ให้ไม่มีขีดเส้นใต้ และสีขาว */
+        .leaflet-popup-content a {
+            text-decoration: none !important;
+            color: white !important;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 h-screen overflow-hidden flex flex-col">
+
+    <header class="bg-white shadow-md z-20 h-16 flex items-center justify-between px-4">
+        <div class="flex items-center gap-3">
+            <a href="index.html" class="w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 transition">
+                <i class="fa-solid fa-arrow-left"></i>
+            </a>
+            <div>
+                <h1 class="text-lg font-bold text-gray-800 leading-none">จุดจอดรถ มจพ.</h1>
+                <span id="user-status-text" class="text-xs text-gray-500">กำลังโหลด...</span>
+            </div>
+        </div>
+
+        <button onclick="handleTopRightButton()" id="action-btn" class="bg-kmutnb-main hover:bg-orange-700 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg transition flex items-center gap-2">
+            <i class="fa-regular fa-comment-dots"></i>
+            <span id="action-btn-text">แจ้งปัญหา</span>
+        </button>
+    </header>
+
+    <div id="map" class="relative"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        // --------------------------------------------------------
+        // Config Supabase
+        // --------------------------------------------------------
+        const SUPABASE_URL = 'https://hcjquegorteantfzckpf.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_3bK3c4hh7hu37K0XxCzXVA_-5rJH89L'; 
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // --------------------------------------------------------
+        // 1. User & Session Management
+        // --------------------------------------------------------
+        let userData = JSON.parse(sessionStorage.getItem('userData')) || {};
+        let userType = sessionStorage.getItem('userType') || 'guest';
+        
+        // ถ้า role ใน DB เป็น admin ให้เป็น admin
+        if(userData.role === 'admin') userType = 'admin';
+
+        function updateUI() {
+            const statusText = document.getElementById('user-status-text');
+            const btnText = document.getElementById('action-btn-text');
+            const btnIcon = document.querySelector('#action-btn i');
+
+            if (userType === 'admin') {
+                statusText.innerText = 'โหมดผู้ดูแล: แตะแผนที่เพื่อเพิ่มหมุด';
+                statusText.className = 'text-xs text-red-600 font-bold';
+                btnText.innerText = 'จัดการระบบ';
+                btnIcon.className = 'fa-solid fa-map-pin';
+            } else {
+                statusText.innerText = 'แตะที่หมุดเพื่อนำทาง';
+                statusText.className = 'text-xs text-gray-500';
+                btnText.innerText = 'แจ้งปัญหา';
+                btnIcon.className = 'fa-regular fa-comment-dots';
+            }
+        }
+
+        // --------------------------------------------------------
+        // 2. Map Initialization
+        // --------------------------------------------------------
+        const KMUTNB_LAT = 13.819077;
+        const KMUTNB_LNG = 100.514332;
+        let map;
+        let markers = [];
+
+        function initMap() {
+            map = L.map('map').setView([KMUTNB_LAT, KMUTNB_LNG], 17);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+
+            // โหลดข้อมูลหมุดจาก Supabase
+            fetchParkingSpots();
+
+            // Admin: Click map to ADD pin
+            map.on('click', function(e) {
+                if (userType === 'admin') {
+                    openAddPinModal(e.latlng.lat, e.latlng.lng);
+                }
+            });
+        }
+
+        // --------------------------------------------------------
+        // 3. Supabase Operations
+        // --------------------------------------------------------
+
+        // READ: ดึงข้อมูลหมุดทั้งหมด
+        async function fetchParkingSpots() {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('parking_spots')
+                    .select('*');
+
+                if (error) throw error;
+                renderPins(data);
+
+            } catch (err) {
+                console.error('Error fetching spots:', err);
+                Swal.fire('Error', 'ไม่สามารถโหลดข้อมูลที่จอดรถได้', 'error');
+            }
+        }
+
+        // CREATE: เพิ่มหมุดใหม่ (Admin)
+        async function addSpotToSupabase(name, type, capacity, lat, lng) {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('parking_spots')
+                    .insert([
+                        { name, type, capacity, lat, lng, status: 'available' }
+                    ]);
+
+                if (error) throw error;
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'บันทึกสำเร็จ',
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 1500
+                });
+                fetchParkingSpots(); // โหลดหมุดใหม่
+
+            } catch (err) {
+                console.error('Error adding spot:', err);
+                Swal.fire('Error', 'ไม่สามารถเพิ่มหมุดได้', 'error');
+            }
+        }
+
+        // DELETE: ลบหมุด (Admin)
+        window.deletePin = async function(id) {
+            Swal.fire({
+                title: 'ยืนยันการลบ?',
+                text: "ข้อมูลจะถูกลบออกจากฐานข้อมูลทันที",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'ลบเลย'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    try {
+                        const { error } = await supabaseClient
+                            .from('parking_spots')
+                            .delete()
+                            .eq('id', id);
+
+                        if (error) throw error;
+
+                        Swal.fire('Deleted!', 'ลบหมุดเรียบร้อยแล้ว', 'success');
+                        fetchParkingSpots(); 
+
+                    } catch (err) {
+                        Swal.fire('Error', 'ลบไม่สำเร็จ', 'error');
+                    }
+                }
+            });
+        }
+
+        // --------------------------------------------------------
+        // 4. Render Pins
+        // --------------------------------------------------------
+        function renderPins(spots) {
+            markers.forEach(m => map.removeLayer(m));
+            markers = [];
+
+            if (!spots) return;
+
+            spots.forEach(spot => {
+                const isCar = spot.type === 'car';
+                const iconClass = isCar ? 'fa-car' : 'fa-motorcycle';
+                const statusClass = spot.status === 'full' ? 'pin-full' : '';
+                const statusText = spot.status === 'full' 
+                    ? '<span class="text-red-500 font-bold">เต็ม</span>' 
+                    : '<span class="text-green-500 font-bold">ว่าง</span>';
+
+                const customIcon = L.divIcon({
+                    className: 'custom-div-icon',
+                    html: `<div class="custom-pin ${statusClass}" style="width: 32px; height: 32px;">
+                            <i class="fa-solid ${iconClass}"></i>
+                           </div>`,
+                    iconSize: [32, 32],
+                    iconAnchor: [16, 32],
+                    popupAnchor: [0, -35]
+                });
+
+                const marker = L.marker([spot.lat, spot.lng], { icon: customIcon }).addTo(map);
+                
+                // สร้างเนื้อหา Popup
+                let popupContent = `
+                    <div class="text-center font-sans p-1 min-w-[160px]">
+                        <h3 class="font-bold text-lg text-gray-800 mb-1">${spot.name}</h3>
+                        <div class="text-sm text-gray-600 mb-2">สถานะ: ${statusText} <br><span class="text-xs text-gray-400">(${spot.capacity})</span></div>
+                        <div class="flex gap-2 justify-center mt-2">
+                `;
+
+                // --- ปุ่มนำทาง (แก้สีขาวแล้ว) ---
+                // ใส่ !text-white และ style="color: white !important"
+                popupContent += `
+                    <a href="https://www.google.com/maps/dir/?api=1&destination=${spot.lat},${spot.lng}" target="_blank" 
+                       class="bg-blue-600 hover:bg-blue-700 !text-white text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 shadow transition"
+                       style="color: white !important;">
+                       <i class="fa-solid fa-location-arrow"></i> นำทาง
+                    </a>
+                `;
+
+                // ปุ่มลบสำหรับ Admin
+                if (userType === 'admin') {
+                    popupContent += `
+                        <button onclick="window.deletePin(${spot.id})" class="bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-1.5 rounded-lg shadow">
+                           <i class="fa-solid fa-trash"></i> ลบ
+                        </button>
+                    `;
+                }
+
+                popupContent += `</div></div>`;
+
+                marker.bindPopup(popupContent);
+                markers.push(marker);
+            });
+        }
+
+        // --------------------------------------------------------
+        // 5. UI Handlers
+        // --------------------------------------------------------
+
+        function handleTopRightButton() {
+            if (userType === 'admin') {
+                Swal.fire({
+                    title: 'โหมดผู้ดูแลระบบ',
+                    text: 'แตะที่ว่างบนแผนที่เพื่อเพิ่มหมุด หรือแตะที่หมุดเพื่อลบ',
+                    icon: 'info',
+                    confirmButtonText: 'รับทราบ',
+                    confirmButtonColor: '#EE3F0B'
+                });
+            } else {
+                openReportModal();
+            }
+        }
+
+        // Modal: แจ้งปัญหา (User) -> ส่งเข้า Supabase
+        async function openReportModal() {
+            const { value: text } = await Swal.fire({
+                title: 'แจ้งปัญหาที่จอดรถ',
+                input: 'textarea',
+                inputLabel: 'ระบุปัญหาที่พบ',
+                inputPlaceholder: 'เช่น ไฟส่องสว่างเสีย, รถจอดขวางทาง...',
+                showCancelButton: true,
+                confirmButtonText: 'ส่งรายงาน',
+                cancelButtonText: 'ยกเลิก',
+                confirmButtonColor: '#EE3F0B'
+            });
+
+            if (text) {
+                try {
+                    // หาชื่อคนแจ้ง (ถ้าไม่มี session ให้เป็น Guest)
+                    const reporterName = userData.full_name || 'Guest User';
+
+                    // Insert ลง Supabase ตาราง reports
+                    const { error } = await supabaseClient
+                        .from('reports')
+                        .insert([
+                            { 
+                                description: text, 
+                                reporter_name: reporterName,
+                                status: 'pending'
+                            }
+                        ]);
+
+                    if (error) throw error;
+
+                    Swal.fire('ขอบคุณ', 'ส่งรายงานเรียบร้อยแล้ว', 'success');
+
+                } catch (err) {
+                    console.error('Report Error:', err);
+                    Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถส่งรายงานได้', 'error');
+                }
+            }
+        }
+
+        // Modal: เพิ่มหมุด (Admin)
+        async function openAddPinModal(lat, lng) {
+            const { value: formValues } = await Swal.fire({
+                title: 'เพิ่มจุดจอดรถใหม่',
+                html:
+                    `<div class="text-left text-sm text-gray-500 mb-1">ชื่อจุดจอด</div>` +
+                    `<input id="swal-name" class="swal2-input" placeholder="ชื่อจุดจอด" style="margin-top:0;">` +
+                    `<div class="text-left text-sm text-gray-500 mt-3 mb-1">ประเภท</div>` +
+                    `<select id="swal-type" class="swal2-input" style="margin-top:0;">
+                        <option value="car">รถยนต์</option>
+                        <option value="motorcycle">มอเตอร์ไซค์</option>
+                    </select>` +
+                    `<div class="text-left text-sm text-gray-500 mt-3 mb-1">ความจุ</div>` +
+                    `<input id="swal-cap" class="swal2-input" placeholder="เช่น 50 คัน" style="margin-top:0;">`,
+                focusConfirm: false,
+                showCancelButton: true,
+                confirmButtonText: 'บันทึก',
+                confirmButtonColor: '#EE3F0B',
+                preConfirm: () => {
+                    const name = document.getElementById('swal-name').value;
+                    const type = document.getElementById('swal-type').value;
+                    const cap = document.getElementById('swal-cap').value;
+                    if (!name) Swal.showValidationMessage('กรุณาใส่ชื่อจุดจอด');
+                    return [name, type, cap];
+                }
+            });
+
+            if (formValues) {
+                const [name, type, cap] = formValues;
+                addSpotToSupabase(name, type, cap, lat, lng);
+            }
+        }
+
+        // Start App
+        updateUI();
+        initMap();
+
+    </script>
+</body>
+</html>
