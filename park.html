@@ -6,15 +6,10 @@
     <title>KMUTNB Parking - ที่จอดรถ</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
-    
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;700&display=swap" rel="stylesheet">
 
     <script>
@@ -60,6 +55,14 @@
             text-decoration: none !important;
             color: white !important;
         }
+        /* ปรับแต่ง Popup ให้ดูดีขึ้น */
+        .leaflet-popup-content-wrapper {
+            border-radius: 12px;
+            padding: 0;
+        }
+        .leaflet-popup-content {
+            margin: 10px;
+        }
     </style>
 </head>
 <body class="bg-gray-100 h-screen overflow-hidden flex flex-col">
@@ -99,7 +102,6 @@
         let userData = JSON.parse(sessionStorage.getItem('userData')) || {};
         let userType = sessionStorage.getItem('userType') || 'guest';
         
-        // ถ้า role ใน DB เป็น admin ให้เป็น admin
         if(userData.role === 'admin') userType = 'admin';
 
         function updateUI() {
@@ -108,7 +110,7 @@
             const btnIcon = document.querySelector('#action-btn i');
 
             if (userType === 'admin') {
-                statusText.innerText = 'โหมดผู้ดูแล: แตะแผนที่เพื่อเพิ่มหมุด';
+                statusText.innerText = 'โหมดผู้ดูแล: แตะแผนที่เพิ่มหมุด / แตะหมุดเพื่อแก้ไข';
                 statusText.className = 'text-xs text-red-600 font-bold';
                 btnText.innerText = 'จัดการระบบ';
                 btnIcon.className = 'fa-solid fa-map-pin';
@@ -127,6 +129,7 @@
         const KMUTNB_LNG = 100.514332;
         let map;
         let markers = [];
+        let allSpotsData = []; // เก็บข้อมูลทั้งหมดไว้ใช้อ้างอิงตอนแก้ไข
 
         function initMap() {
             map = L.map('map').setView([KMUTNB_LAT, KMUTNB_LNG], 17);
@@ -135,10 +138,8 @@
                 attribution: '© OpenStreetMap contributors'
             }).addTo(map);
 
-            // โหลดข้อมูลหมุดจาก Supabase
             fetchParkingSpots();
 
-            // Admin: Click map to ADD pin
             map.on('click', function(e) {
                 if (userType === 'admin') {
                     openAddPinModal(e.latlng.lat, e.latlng.lng);
@@ -155,9 +156,12 @@
             try {
                 const { data, error } = await supabaseClient
                     .from('parking_spots')
-                    .select('*');
+                    .select('*')
+                    .order('id', { ascending: true }); // เรียงตาม ID
 
                 if (error) throw error;
+                
+                allSpotsData = data; // บันทึกข้อมูลลงตัวแปร Global
                 renderPins(data);
 
             } catch (err) {
@@ -169,27 +173,32 @@
         // CREATE: เพิ่มหมุดใหม่ (Admin)
         async function addSpotToSupabase(name, type, capacity, lat, lng) {
             try {
-                const { data, error } = await supabaseClient
+                const { error } = await supabaseClient
                     .from('parking_spots')
-                    .insert([
-                        { name, type, capacity, lat, lng, status: 'available' }
-                    ]);
+                    .insert([{ name, type, capacity, lat, lng, status: 'available' }]);
 
                 if (error) throw error;
-
-                Swal.fire({
-                    icon: 'success',
-                    title: 'บันทึกสำเร็จ',
-                    toast: true,
-                    position: 'top-end',
-                    showConfirmButton: false,
-                    timer: 1500
-                });
-                fetchParkingSpots(); // โหลดหมุดใหม่
-
+                Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ', timer: 1500, showConfirmButton: false });
+                fetchParkingSpots(); 
             } catch (err) {
-                console.error('Error adding spot:', err);
                 Swal.fire('Error', 'ไม่สามารถเพิ่มหมุดได้', 'error');
+            }
+        }
+
+        // UPDATE: แก้ไขข้อมูล (Admin) -- NEW FUNCTION
+        async function updateSpotInSupabase(id, name, type, capacity, status) {
+            try {
+                const { error } = await supabaseClient
+                    .from('parking_spots')
+                    .update({ name, type, capacity, status })
+                    .eq('id', id);
+
+                if (error) throw error;
+                Swal.fire({ icon: 'success', title: 'แก้ไขเรียบร้อย', timer: 1500, showConfirmButton: false });
+                fetchParkingSpots(); 
+            } catch (err) {
+                console.error(err);
+                Swal.fire('Error', 'แก้ไขข้อมูลไม่สำเร็จ', 'error');
             }
         }
 
@@ -201,7 +210,6 @@
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#d33',
-                cancelButtonColor: '#3085d6',
                 confirmButtonText: 'ลบเลย'
             }).then(async (result) => {
                 if (result.isConfirmed) {
@@ -212,10 +220,8 @@
                             .eq('id', id);
 
                         if (error) throw error;
-
                         Swal.fire('Deleted!', 'ลบหมุดเรียบร้อยแล้ว', 'success');
                         fetchParkingSpots(); 
-
                     } catch (err) {
                         Swal.fire('Error', 'ลบไม่สำเร็จ', 'error');
                     }
@@ -252,16 +258,14 @@
 
                 const marker = L.marker([spot.lat, spot.lng], { icon: customIcon }).addTo(map);
                 
-                // สร้างเนื้อหา Popup
                 let popupContent = `
-                    <div class="text-center font-sans p-1 min-w-[160px]">
+                    <div class="text-center font-sans p-1 min-w-[180px]">
                         <h3 class="font-bold text-lg text-gray-800 mb-1">${spot.name}</h3>
                         <div class="text-sm text-gray-600 mb-2">สถานะ: ${statusText} <br><span class="text-xs text-gray-400">(${spot.capacity})</span></div>
-                        <div class="flex gap-2 justify-center mt-2">
+                        <div class="flex gap-2 justify-center mt-2 flex-wrap">
                 `;
 
-                // --- ปุ่มนำทาง (แก้สีขาวแล้ว) ---
-                // ใส่ !text-white และ style="color: white !important"
+                // ปุ่มนำทาง (ทุกคนเห็น)
                 popupContent += `
                     <a href="https://www.google.com/maps/dir/?api=1&destination=${spot.lat},${spot.lng}" target="_blank" 
                        class="bg-blue-600 hover:bg-blue-700 !text-white text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 shadow transition"
@@ -270,31 +274,33 @@
                     </a>
                 `;
 
-                // ปุ่มลบสำหรับ Admin
+                // ปุ่มสำหรับ Admin (แก้ไข + ลบ)
                 if (userType === 'admin') {
                     popupContent += `
-                        <button onclick="window.deletePin(${spot.id})" class="bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-1.5 rounded-lg shadow">
+                        <button onclick="window.openEditPinModal(${spot.id})" class="bg-yellow-500 hover:bg-yellow-600 text-white text-xs px-3 py-1.5 rounded-lg shadow flex items-center gap-1">
+                           <i class="fa-solid fa-pen-to-square"></i> แก้ไข
+                        </button>
+                        <button onclick="window.deletePin(${spot.id})" class="bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-1.5 rounded-lg shadow flex items-center gap-1">
                            <i class="fa-solid fa-trash"></i> ลบ
                         </button>
                     `;
                 }
 
                 popupContent += `</div></div>`;
-
                 marker.bindPopup(popupContent);
                 markers.push(marker);
             });
         }
 
         // --------------------------------------------------------
-        // 5. UI Handlers
+        // 5. UI Handlers & Modals
         // --------------------------------------------------------
 
         function handleTopRightButton() {
             if (userType === 'admin') {
                 Swal.fire({
                     title: 'โหมดผู้ดูแลระบบ',
-                    text: 'แตะที่ว่างบนแผนที่เพื่อเพิ่มหมุด หรือแตะที่หมุดเพื่อลบ',
+                    text: 'แตะที่ว่างบนแผนที่เพื่อเพิ่มหมุด หรือแตะที่หมุดเพื่อแก้ไข/ลบ',
                     icon: 'info',
                     confirmButtonText: 'รับทราบ',
                     confirmButtonColor: '#EE3F0B'
@@ -304,41 +310,28 @@
             }
         }
 
-        // Modal: แจ้งปัญหา (User) -> ส่งเข้า Supabase
+        // Modal: แจ้งปัญหา (User)
         async function openReportModal() {
             const { value: text } = await Swal.fire({
                 title: 'แจ้งปัญหาที่จอดรถ',
                 input: 'textarea',
                 inputLabel: 'ระบุปัญหาที่พบ',
-                inputPlaceholder: 'เช่น ไฟส่องสว่างเสีย, รถจอดขวางทาง...',
+                inputPlaceholder: 'เช่น ไฟส่องสว่างเสีย...',
                 showCancelButton: true,
                 confirmButtonText: 'ส่งรายงาน',
-                cancelButtonText: 'ยกเลิก',
                 confirmButtonColor: '#EE3F0B'
             });
 
             if (text) {
                 try {
-                    // หาชื่อคนแจ้ง (ถ้าไม่มี session ให้เป็น Guest)
                     const reporterName = userData.full_name || 'Guest User';
-
-                    // Insert ลง Supabase ตาราง reports
-                    const { error } = await supabaseClient
-                        .from('reports')
-                        .insert([
-                            { 
-                                description: text, 
-                                reporter_name: reporterName,
-                                status: 'pending'
-                            }
-                        ]);
-
-                    if (error) throw error;
-
+                    await supabaseClient.from('reports').insert([{ 
+                        description: text, 
+                        reporter_name: reporterName,
+                        status: 'pending'
+                    }]);
                     Swal.fire('ขอบคุณ', 'ส่งรายงานเรียบร้อยแล้ว', 'success');
-
                 } catch (err) {
-                    console.error('Report Error:', err);
                     Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถส่งรายงานได้', 'error');
                 }
             }
@@ -372,12 +365,57 @@
             });
 
             if (formValues) {
-                const [name, type, cap] = formValues;
-                addSpotToSupabase(name, type, cap, lat, lng);
+                addSpotToSupabase(formValues[0], formValues[1], formValues[2], lat, lng);
             }
         }
 
-        // Start Appss
+        // Modal: แก้ไขหมุด (Admin) -- NEW FUNCTION
+        window.openEditPinModal = async function(id) {
+            // ค้นหาข้อมูลเดิมจากตัวแปร Global
+            const spot = allSpotsData.find(s => s.id === id);
+            if (!spot) return;
+
+            const { value: formValues } = await Swal.fire({
+                title: 'แก้ไขข้อมูลจุดจอด',
+                html:
+                    `<div class="text-left text-sm text-gray-500 mb-1">ชื่อจุดจอด</div>` +
+                    `<input id="edit-name" class="swal2-input" value="${spot.name}" style="margin-top:0;">` +
+                    
+                    `<div class="text-left text-sm text-gray-500 mt-3 mb-1">สถานะ (ว่าง/เต็ม)</div>` +
+                    `<select id="edit-status" class="swal2-input" style="margin-top:0;">
+                        <option value="available" ${spot.status === 'available' ? 'selected' : ''}>ว่าง (สีเขียว)</option>
+                        <option value="full" ${spot.status === 'full' ? 'selected' : ''}>เต็ม (สีแดง)</option>
+                    </select>` +
+
+                    `<div class="text-left text-sm text-gray-500 mt-3 mb-1">ประเภท</div>` +
+                    `<select id="edit-type" class="swal2-input" style="margin-top:0;">
+                        <option value="car" ${spot.type === 'car' ? 'selected' : ''}>รถยนต์</option>
+                        <option value="motorcycle" ${spot.type === 'motorcycle' ? 'selected' : ''}>มอเตอร์ไซค์</option>
+                    </select>` +
+                    
+                    `<div class="text-left text-sm text-gray-500 mt-3 mb-1">ความจุ</div>` +
+                    `<input id="edit-cap" class="swal2-input" value="${spot.capacity}" style="margin-top:0;">`,
+                focusConfirm: false,
+                showCancelButton: true,
+                confirmButtonText: 'อัปเดต',
+                confirmButtonColor: '#F59E0B', // สีเหลือง
+                preConfirm: () => {
+                    const name = document.getElementById('edit-name').value;
+                    const status = document.getElementById('edit-status').value;
+                    const type = document.getElementById('edit-type').value;
+                    const cap = document.getElementById('edit-cap').value;
+                    if (!name) Swal.showValidationMessage('กรุณาใส่ชื่อจุดจอด');
+                    return [name, type, cap, status];
+                }
+            });
+
+            if (formValues) {
+                // ส่งค่าไปอัปเดต (เรียง parameter ตามฟังก์ชัน: id, name, type, capacity, status)
+                updateSpotInSupabase(id, formValues[0], formValues[1], formValues[2], formValues[3]);
+            }
+        }
+
+        // Start App
         updateUI();
         initMap();
 

@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KMUTNB Map - แผนที่ มจพ.</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        kmutnb: { main: '#EE3F0B', light: '#FF6B42' }
+                    },
+                    fontFamily: { sans: ['Prompt', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { font-family: 'Prompt', sans-serif; }
+        #map { height: calc(100vh - 64px); width: 100%; z-index: 0; }
+        
+        /* Custom Marker Base */
+        .custom-pin {
+            background-color: white;
+            border-radius: 50%;
+            border: 2px solid;
+            text-align: center;
+            font-size: 16px;
+            padding-top: 4px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: transform 0.2s;
+        }
+        .custom-pin:hover {
+            transform: scale(1.1);
+            color: white !important;
+        }
+
+        /* ประเภท: คณะ/ตึกเรียน (สีส้ม มจพ.) */
+        .pin-faculty { border-color: #EE3F0B; color: #EE3F0B; }
+        .pin-faculty:hover { background-color: #EE3F0B; border-color: white; }
+
+        /* ประเภท: ส่วนกลาง/โรงอาหาร (สีน้ำเงิน) */
+        .pin-facility { border-color: #2563EB; color: #2563EB; }
+        .pin-facility:hover { background-color: #2563EB; border-color: white; }
+
+        /* ประเภท: อื่นๆ/สถานที่สำคัญ (สีเทาเข้ม) */
+        .pin-other { border-color: #4B5563; color: #4B5563; }
+        .pin-other:hover { background-color: #4B5563; border-color: white; }
+
+        /* Popup Styles */
+        .leaflet-popup-content a {
+            text-decoration: none !important;
+            color: white !important;
+        }
+        .leaflet-popup-content-wrapper {
+            border-radius: 12px;
+            padding: 0;
+            overflow: hidden;
+        }
+        .leaflet-popup-content { margin: 0; }
+    </style>
+</head>
+<body class="bg-gray-100 h-screen overflow-hidden flex flex-col">
+
+    <header class="bg-white shadow-md z-20 h-16 flex items-center justify-between px-4">
+        <div class="flex items-center gap-3">
+            <a href="index.html" class="w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 transition">
+                <i class="fa-solid fa-arrow-left"></i>
+            </a>
+            <div>
+                <h1 class="text-lg font-bold text-gray-800 leading-none">แผนที่อาคาร มจพ.</h1>
+                <span id="user-status-text" class="text-xs text-gray-500">กำลังโหลด...</span>
+            </div>
+        </div>
+
+        <button onclick="handleTopRightButton()" id="action-btn" class="bg-kmutnb-main hover:bg-orange-700 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg transition flex items-center gap-2">
+            <i class="fa-regular fa-comment-dots"></i>
+            <span id="action-btn-text">แจ้งปัญหา</span>
+        </button>
+    </header>
+
+    <div id="map" class="relative"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        // --------------------------------------------------------
+        // Config Supabase
+        // --------------------------------------------------------
+        const SUPABASE_URL = 'https://hcjquegorteantfzckpf.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_3bK3c4hh7hu37K0XxCzXVA_-5rJH89L'; 
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // --------------------------------------------------------
+        // 1. User & Session Management
+        // --------------------------------------------------------
+        let userData = JSON.parse(sessionStorage.getItem('userData')) || {};
+        let userType = sessionStorage.getItem('userType') || 'guest';
+        
+        if(userData.role === 'admin') userType = 'admin';
+
+        function updateUI() {
+            const statusText = document.getElementById('user-status-text');
+            const btnText = document.getElementById('action-btn-text');
+            const btnIcon = document.querySelector('#action-btn i');
+
+            if (userType === 'admin') {
+                statusText.innerText = 'โหมดผู้ดูแล: แตะแผนที่เพิ่มตึก / แตะหมุดแก้ไข';
+                statusText.className = 'text-xs text-red-600 font-bold';
+                btnText.innerText = 'จัดการระบบ';
+                btnIcon.className = 'fa-solid fa-map-pin';
+            } else {
+                statusText.innerText = 'แตะที่หมุดเพื่อดูรายละเอียด';
+                statusText.className = 'text-xs text-gray-500';
+                btnText.innerText = 'แจ้งปัญหา/สอบถาม';
+                btnIcon.className = 'fa-regular fa-paper-plane';
+            }
+        }
+
+        // --------------------------------------------------------
+        // 2. Map Initialization
+        // --------------------------------------------------------
+        const KMUTNB_LAT = 13.819077;
+        const KMUTNB_LNG = 100.514332;
+        let map;
+        let markers = [];
+        let allBuildingsData = []; // เก็บข้อมูลอาคารทั้งหมด
+
+        function initMap() {
+            map = L.map('map').setView([KMUTNB_LAT, KMUTNB_LNG], 17);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+
+            fetchBuildings();
+
+            // Admin: Click map to ADD pin
+            map.on('click', function(e) {
+                if (userType === 'admin') {
+                    openAddPinModal(e.latlng.lat, e.latlng.lng);
+                }
+            });
+        }
+
+        // --------------------------------------------------------
+        // 3. Supabase Operations (Buildings Table)
+        // --------------------------------------------------------
+
+        // READ
+        async function fetchBuildings() {
+            try {
+                // เปลี่ยนชื่อ Table เป็น 'buildings' ตามบริบทใหม่
+                // ถ้ายังไม่ได้สร้าง Table ให้สร้าง หรือเปลี่ยนกลับเป็น 'dormitories' ถ้าจะใช้ Table เดิมแก้ขัด
+                const { data, error } = await supabaseClient
+                    .from('buildings') 
+                    .select('*')
+                    .order('id', { ascending: true });
+
+                if (error) {
+                    // Fallback: ถ้าหา table buildings ไม่เจอ อาจจะลองดึง dormitories (เผื่อ user ลืมสร้าง)
+                    console.warn('Buildings table not found, trying fallback logic or checking error:', error);
+                    throw error;
+                }
+                
+                allBuildingsData = data;
+                renderPins(data);
+
+            } catch (err) {
+                console.error('Error fetching buildings:', err);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'โหลดข้อมูลไม่สำเร็จ',
+                    text: 'กรุณาตรวจสอบว่ามี Table "buildings" ใน Supabase หรือยัง'
+                });
+            }
+        }
+
+        // CREATE
+        async function addBuildingToSupabase(name, type, details, lat, lng) {
+            try {
+                const { error } = await supabaseClient
+                    .from('buildings')
+                    .insert([{ name, type, details, lat, lng }]);
+
+                if (error) throw error;
+                Swal.fire({ icon: 'success', title: 'เพิ่มตึกสำเร็จ', timer: 1500, showConfirmButton: false });
+                fetchBuildings(); 
+            } catch (err) {
+                Swal.fire('Error', 'เพิ่มข้อมูลไม่สำเร็จ', 'error');
+            }
+        }
+
+        // UPDATE
+        async function updateBuildingInSupabase(id, name, type, details) {
+            try {
+                const { error } = await supabaseClient
+                    .from('buildings')
+                    .update({ name, type, details })
+                    .eq('id', id);
+
+                if (error) throw error;
+                Swal.fire({ icon: 'success', title: 'แก้ไขเรียบร้อย', timer: 1500, showConfirmButton: false });
+                fetchBuildings(); 
+            } catch (err) {
+                Swal.fire('Error', 'แก้ไขข้อมูลไม่สำเร็จ', 'error');
+            }
+        }
+
+        // DELETE
+        window.deletePin = async function(id) {
+            Swal.fire({
+                title: 'ยืนยันการลบ?',
+                text: "ข้อมูลตึกนี้จะหายไปถาวร",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                confirmButtonText: 'ลบเลย'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    try {
+                        const { error } = await supabaseClient
+                            .from('buildings')
+                            .delete()
+                            .eq('id', id);
+
+                        if (error) throw error;
+                        Swal.fire('Deleted!', 'ลบเรียบร้อยแล้ว', 'success');
+                        fetchBuildings(); 
+                    } catch (err) {
+                        Swal.fire('Error', 'ลบไม่สำเร็จ', 'error');
+                    }
+                }
+            });
+        }
+
+        // --------------------------------------------------------
+        // 4. Render Pins
+        // --------------------------------------------------------
+        function renderPins(buildings) {
+            markers.forEach(m => map.removeLayer(m));
+            markers = [];
+
+            if (!buildings) return;
+
+            buildings.forEach(b => {
+                // กำหนด Icon และสีตามประเภท
+                let iconClass = 'fa-building';
+                let styleClass = 'pin-other';
+                let typeLabel = 'ทั่วไป';
+                let typeColorClass = 'text-gray-600';
+
+                if (b.type === 'faculty') {
+                    iconClass = 'fa-graduation-cap'; // ไอคอนคณะ
+                    styleClass = 'pin-faculty';
+                    typeLabel = 'คณะ/สำนัก';
+                    typeColorClass = 'text-kmutnb-main';
+                } else if (b.type === 'facility') {
+                    iconClass = 'fa-utensils'; // ไอคอนโรงอาหาร/ส่วนกลาง (เปลี่ยนได้)
+                    styleClass = 'pin-facility';
+                    typeLabel = 'ส่วนกลาง/บริการ';
+                    typeColorClass = 'text-blue-600';
+                }
+
+                const customIcon = L.divIcon({
+                    className: 'custom-div-icon',
+                    html: `<div class="custom-pin ${styleClass}" style="width: 32px; height: 32px;">
+                            <i class="fa-solid ${iconClass}"></i>
+                           </div>`,
+                    iconSize: [32, 32],
+                    iconAnchor: [16, 32],
+                    popupAnchor: [0, -10]
+                });
+
+                const marker = L.marker([b.lat, b.lng], { icon: customIcon }).addTo(map);
+                
+                // Popup Content
+                let popupContent = `
+                    <div class="font-sans min-w-[220px] overflow-hidden">
+                        <div class="bg-gray-800 text-white p-2 text-center">
+                            <h3 class="font-bold text-lg leading-tight">${b.name}</h3>
+                        </div>
+                        <div class="p-3">
+                            <div class="text-xs font-bold ${typeColorClass} mb-2 flex items-center gap-1">
+                                <i class="fa-solid fa-tag"></i> ${typeLabel}
+                            </div>
+                            <div class="text-sm text-gray-600 mb-3 bg-gray-50 p-2 rounded border border-gray-100 whitespace-pre-line">
+                                ${b.details || 'ไม่มีรายละเอียด'}
+                            </div>
+                            
+                            <div class="flex gap-2 justify-center flex-wrap mt-2">
+                `;
+
+                // ปุ่มนำทาง
+                popupContent += `
+                    <a href="https://www.google.com/maps/dir/?api=1&destination=${b.lat},${b.lng}" target="_blank" 
+                       class="bg-blue-600 hover:bg-blue-700 !text-white text-xs px-3 py-2 rounded shadow transition flex items-center gap-1 w-full justify-center">
+                       <i class="fa-solid fa-location-arrow"></i> นำทาง Google Maps
+                    </a>
+                `;
+
+                // Admin Buttons
+                if (userType === 'admin') {
+                    popupContent += `
+                        <div class="flex gap-2 w-full mt-1">
+                            <button onclick="window.openEditPinModal(${b.id})" class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white text-xs px-2 py-2 rounded shadow">
+                               <i class="fa-solid fa-pen-to-square"></i> แก้ไข
+                            </button>
+                            <button onclick="window.deletePin(${b.id})" class="flex-1 bg-red-500 hover:bg-red-600 text-white text-xs px-2 py-2 rounded shadow">
+                               <i class="fa-solid fa-trash"></i> ลบ
+                            </button>
+                        </div>
+                    `;
+                }
+
+                popupContent += `</div></div></div>`;
+
+                marker.bindPopup(popupContent);
+                markers.push(marker);
+            });
+        }
+
+        // --------------------------------------------------------
+        // 5. UI Handlers & Modals
+        // --------------------------------------------------------
+
+        function handleTopRightButton() {
+            if (userType === 'admin') {
+                Swal.fire({
+                    title: 'Admin Mode',
+                    text: 'แตะพื้นที่ว่างเพื่อ "เพิ่มตึก" หรือแตะที่หมุดเพื่อ "แก้ไข/ลบ"',
+                    icon: 'info',
+                    confirmButtonColor: '#EE3F0B'
+                });
+            } else {
+                openReportModal();
+            }
+        }
+
+        // Modal: แจ้งปัญหา (User)
+        async function openReportModal() {
+            const { value: text } = await Swal.fire({
+                title: 'แจ้งปัญหา/สอบถาม',
+                input: 'textarea',
+                inputLabel: 'ระบุรายละเอียด',
+                inputPlaceholder: 'เช่น ห้องน้ำตึก 62 สะอาดมาก, ทางเดินตึก 78 ไฟดับ...',
+                showCancelButton: true,
+                confirmButtonText: 'ส่งข้อมูล',
+                confirmButtonColor: '#EE3F0B'
+            });
+
+            if (text) {
+                try {
+                    const reporterName = userData.full_name || 'Guest User';
+                    await supabaseClient.from('reports').insert([{ 
+                        description: '[BUILDING] ' + text, 
+                        reporter_name: reporterName,
+                        status: 'pending'
+                    }]);
+                    Swal.fire('ขอบคุณ', 'ส่งข้อมูลเรียบร้อยแล้ว', 'success');
+                } catch (err) {
+                    Swal.fire('Error', 'ส่งไม่สำเร็จ', 'error');
+                }
+            }
+        }
+
+        // Modal: เพิ่มตึก (Admin)
+        async function openAddPinModal(lat, lng) {
+            const { value: formValues } = await Swal.fire({
+                title: 'เพิ่มอาคารใหม่',
+                html:
+                    `<div class="text-left text-sm text-gray-500 mb-1">ชื่ออาคาร/สถานที่</div>` +
+                    `<input id="swal-name" class="swal2-input" placeholder="เช่น ตึก 78, โรงอาหาร..." style="margin-top:0;">` +
+                    
+                    `<div class="text-left text-sm text-gray-500 mt-3 mb-1">ประเภท</div>` +
+                    `<select id="swal-type" class="swal2-input" style="margin-top:0;">
+                        <option value="faculty">คณะ/ตึกเรียน (สีส้ม)</option>
+                        <option value="facility">ส่วนกลาง/โรงอาหาร (สีฟ้า)</option>
+                        <option value="other">อื่นๆ (สีเทา)</option>
+                    </select>` +
+                    
+                    `<div class="text-left text-sm text-gray-500 mt-3 mb-1">รายละเอียด</div>` +
+                    `<textarea id="swal-details" class="swal2-textarea" placeholder="รายละเอียดอาคาร..." style="margin-top:0; margin-bottom:0; height: 100px;"></textarea>`,
+                focusConfirm: false,
+                showCancelButton: true,
+                confirmButtonText: 'บันทึก',
+                confirmButtonColor: '#EE3F0B',
+                preConfirm: () => {
+                    const name = document.getElementById('swal-name').value;
+                    const type = document.getElementById('swal-type').value;
+                    const details = document.getElementById('swal-details').value;
+                    if (!name) Swal.showValidationMessage('กรุณาใส่ชื่ออาคาร');
+                    return [name, type, details];
+                }
+            });
+
+            if (formValues) {
+                addBuildingToSupabase(formValues[0], formValues[1], formValues[2], lat, lng);
+            }
+        }
+
+        // Modal: แก้ไขตึก (Admin)
+        window.openEditPinModal = async function(id) {
+            const building = allBuildingsData.find(b => b.id === id);
+            if (!building) return;
+
+            const { value: formValues } = await Swal.fire({
+                title: 'แก้ไขข้อมูลอาคาร',
+                html:
+                    `<div class="text-left text-sm text-gray-500 mb-1">ชื่ออาคาร</div>` +
+                    `<input id="edit-name" class="swal2-input" value="${building.name}" style="margin-top:0;">` +
+                    
+                    `<div class="text-left text-sm text-gray-500 mt-3 mb-1">ประเภท</div>` +
+                    `<select id="edit-type" class="swal2-input" style="margin-top:0;">
+                        <option value="faculty" ${building.type === 'faculty' ? 'selected' : ''}>คณะ/ตึกเรียน</option>
+                        <option value="facility" ${building.type === 'facility' ? 'selected' : ''}>ส่วนกลาง/โรงอาหาร</option>
+                        <option value="other" ${building.type === 'other' ? 'selected' : ''}>อื่นๆ</option>
+                    </select>` +
+                    
+                    `<div class="text-left text-sm text-gray-500 mt-3 mb-1">รายละเอียด</div>` +
+                    `<textarea id="edit-details" class="swal2-textarea" style="margin-top:0; margin-bottom:0; height: 100px;">${building.details || ''}</textarea>`,
+                focusConfirm: false,
+                showCancelButton: true,
+                confirmButtonText: 'อัปเดต',
+                confirmButtonColor: '#F59E0B',
+                preConfirm: () => {
+                    const name = document.getElementById('edit-name').value;
+                    const type = document.getElementById('edit-type').value;
+                    const details = document.getElementById('edit-details').value;
+                    if (!name) Swal.showValidationMessage('กรุณาใส่ชื่ออาคาร');
+                    return [name, type, details];
+                }
+            });
+
+            if (formValues) {
+                updateBuildingInSupabase(id, formValues[0], formValues[1], formValues[2]);
+            }
+        }
+
+        // Start App
+        updateUI();
+        initMap();
+
+    </script>
+</body>
+</html>
