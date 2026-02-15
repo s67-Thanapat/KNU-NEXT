@@ -176,9 +176,15 @@
             try {
                 const { error } = await supabaseClient
                     .from('dormitories')
-                    .insert([{ name, type, details, lat, lng }]);
+                    .insert([{ name, type, details, lat, lng, status: 'active' }]);
 
-                if (error) throw error;
+                if (error) {
+                    //เพิ่มเข้ามาเพื่อเช็ค error
+                    console.error("Supabase Error:", error.message); 
+                    console.error("Error Details:", error.details);
+                    console.error("Hint:", error.hint);
+                    throw error;
+                }
 
                 Swal.fire({ icon: 'success', title: 'เพิ่มสำเร็จ', timer: 1500, showConfirmButton: false });
                 fetchDorms(); 
@@ -307,12 +313,7 @@
 
         function handleTopRightButton() {
             if (userType === 'admin') {
-                Swal.fire({
-                    title: 'โหมดผู้ดูแลระบบ',
-                    text: 'แตะที่ว่างบนแผนที่เพื่อเพิ่มหอพัก หรือแตะที่หมุดเพื่อแก้ไข/ลบ',
-                    icon: 'info',
-                    confirmButtonColor: '#EE3F0B'
-                });
+                openManualAddPinModal();
             } else {
                 openReportModal();
             }
@@ -379,6 +380,58 @@
             }
         }
 
+        async function openManualAddPinModal() {
+            const { value: formValues } = await Swal.fire({
+                title: 'เพิ่มหอพัก (ระบุพิกัด)',
+                html:
+                    // 1. ชื่อหอพัก
+                    `<div class="text-left text-sm text-gray-500 mb-1">ชื่อหอพัก</div>` +
+                    `<input id="manual-name" class="swal2-input" placeholder="ระบุชื่อหอพัก" style="margin-top:0;">` +
+
+                    // 2. ละติจูด (ปรับให้เต็มบรรทัด)
+                    `<div class="text-left text-sm text-gray-500 mt-3 mb-1">ละติจูด (Lat)</div>` +
+                    `<input id="manual-lat" class="swal2-input" placeholder="เช่น 13.81xxx" style="margin-top:0;">` +
+
+                    // 3. ลองจิจูด (ปรับให้เต็มบรรทัด และอยู่ด้านล่าง)
+                    `<div class="text-left text-sm text-gray-500 mt-3 mb-1">ลองจิจูด (Lng)</div>` +
+                    `<input id="manual-lng" class="swal2-input" placeholder="เช่น 100.5xxx" style="margin-top:0;">` +
+                    
+                    // 4. ประเภท
+                    `<div class="text-left text-sm text-gray-500 mt-3 mb-1">ประเภท</div>` +
+                    `<select id="manual-type" class="swal2-input" style="margin-top:0;">
+                        <option value="internal">หอพักใน (มจพ.)</option>
+                        <option value="external" selected>หอพักนอก</option>
+                    </select>` +
+                    
+                    // 5. รายละเอียด
+                    `<div class="text-left text-sm text-gray-500 mt-3 mb-1">รายละเอียด/ราคา</div>` +
+                    `<textarea id="manual-details" class="swal2-textarea" placeholder="รายละเอียด..." style="margin-top:0; margin-bottom:0; height: 100px;"></textarea>`,
+                focusConfirm: false,
+                showCancelButton: true,
+                confirmButtonText: 'บันทึกข้อมูล',
+                confirmButtonColor: '#EE3F0B',
+                preConfirm: () => {
+                    const name = document.getElementById('manual-name').value;
+                    const lat = document.getElementById('manual-lat').value;
+                    const lng = document.getElementById('manual-lng').value;
+                    const type = document.getElementById('manual-type').value;
+                    const details = document.getElementById('manual-details').value;
+
+                    if (!name) return Swal.showValidationMessage('กรุณาใส่ชื่อหอพัก');
+                    if (!lat || !lng) return Swal.showValidationMessage('กรุณาใส่พิกัดให้ครบ');
+                    
+                    return [name, type, details, parseFloat(lat), parseFloat(lng)];
+                }
+            });
+
+            if (formValues) {
+                // เรียกฟังก์ชันบันทึกข้อมูลลง Supabase
+                addDormToSupabase(formValues[0], formValues[1], formValues[2], formValues[3], formValues[4]);
+                
+                // เลื่อนแผนที่ไปตำแหน่งใหม่
+                map.setView([formValues[3], formValues[4]], 17);
+            }
+        }
         // Modal: แก้ไขหอพัก (Admin) - NEW
         window.openEditPinModal = async function(id) {
             // ค้นหาข้อมูลเดิม
