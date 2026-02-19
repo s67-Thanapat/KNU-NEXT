@@ -494,13 +494,26 @@
         function selectLocation(id) {
             const b = allBuildingsData.find(x => x.id === id);
             if (!b) return;
+
+            // 1. ใส่ชื่อในช่องค้นหาและปิดกล่องผลลัพธ์
             document.getElementById('search-input').value = b.name;
             document.getElementById('search-results-box').classList.add('hidden');
+
+            // 2. รีเซ็ตฟิลเตอร์เป็น 'ทั้งหมด' เพื่อให้มั่นใจว่าจะเห็นหมุด
             const allBtn = document.querySelector('.filter-chip'); 
             setFilter('all', allBtn);
+
+            // 3. บินไปที่ตำแหน่งนั้น
             map.flyTo([b.lat, b.lng], 18, { animate: true, duration: 1.2 });
+
+            // 4. เมื่อบินเสร็จ ให้สั่ง "คลิก" ที่หมุดเพื่อเปิด Modal ข้อมูล
             map.once('moveend', function() {
-                setTimeout(() => { if(markers[id]) markers[id].openPopup(); }, 100);
+                setTimeout(() => { 
+                    if (markers[id]) {
+                        // สั่ง fire event 'click' เพื่อให้ Modal ที่เราเขียนไว้เด้งขึ้นมา
+                        markers[id].fire('click'); 
+                    } 
+                }, 100);
             });
         }
 
