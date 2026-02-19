@@ -18,7 +18,7 @@
                 extend: {
                     colors: {
                         kmutnb: { main: '#EE3F0B', light: '#FF6B42' },
-                        theme: { pink: '#E85B81' } /* สีชมพูตามรูปตัวอย่าง */
+                        theme: { pink: '#E85B81' }
                     },
                     fontFamily: { sans: ['Prompt', 'sans-serif'] }
                 }
@@ -48,6 +48,11 @@
         .pin-faculty:hover { background-color: #EE3F0B; color: white; border-color: white; }
         .pin-facility { border-color: #2563EB; color: #2563EB; }
         .pin-facility:hover { background-color: #2563EB; color: white; border-color: white; }
+        
+        /* เพิ่มสีทองสำหรับสิ่งศักดิ์สิทธิ์ */
+        .pin-sacred { border-color: #D4AF37; color: #D4AF37; }
+        .pin-sacred:hover { background-color: #D4AF37; color: white; border-color: white; }
+
         .pin-transport { border-color: #9333EA; color: #9333EA; }
         .pin-transport:hover { background-color: #9333EA; color: white; border-color: white; }
         .pin-food { border-color: #D97706; color: #D97706; }
@@ -57,9 +62,9 @@
         .pin-other { border-color: #4B5563; color: #4B5563; }
         .pin-other:hover { background-color: #4B5563; color: white; border-color: white; }
 
-        /* --- Custom Popup Styles (หน้าตาแบบใหม่) --- */
+        /* --- Custom Popup Styles --- */
         .leaflet-popup-content-wrapper {
-            border-radius: 20px; /* ขอบมน */
+            border-radius: 20px;
             padding: 0;
             overflow: hidden;
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
@@ -67,21 +72,12 @@
         }
         .leaflet-popup-content {
             margin: 0;
-            width: 340px !important; /* ความกว้างของกล่อง */
+            width: 340px !important;
             max-width: 90vw;
         }
-        /* ซ่อนปุ่ม X ของ Leaflet เพื่อไปใช้ปุ่มสร้างเองใน HTML */
-        .leaflet-popup-close-button {
-            display: none !important; 
-        }
-        .leaflet-popup-tip-container {
-            width: 30px;
-            height: 15px;
-        }
-        .leaflet-popup-tip {
-            background: #ffffff;
-            box-shadow: 0 10px 10px rgba(0,0,0,0.1);
-        }
+        .leaflet-popup-close-button { display: none !important; }
+        .leaflet-popup-tip-container { width: 30px; height: 15px; }
+        .leaflet-popup-tip { background: #ffffff; box-shadow: 0 10px 10px rgba(0,0,0,0.1); }
 
         /* --- UI Components --- */
         .search-container {
@@ -133,6 +129,7 @@
             <div class="filter-scroll px-1" id="filter-container">
                 <button class="filter-chip active" onclick="setFilter('all', this)"><i class="fa-solid fa-layer-group mr-1"></i> ทั้งหมด</button>
                 <button class="filter-chip" onclick="setFilter('building', this)"><i class="fa-solid fa-building mr-1"></i> ตึก/คณะ</button>
+                <button class="filter-chip" onclick="setFilter('sacred', this)"><i class="fa-solid fa-place-of-worship mr-1"></i> สิ่งศักดิ์สิทธิ์</button>
                 <button class="filter-chip" onclick="setFilter('food', this)"><i class="fa-solid fa-utensils mr-1"></i> ของกิน</button>
                 <button class="filter-chip" onclick="setFilter('transport', this)"><i class="fa-solid fa-elevator mr-1"></i> ลิฟต์/บันได</button>
                 <button class="filter-chip" onclick="setFilter('service', this)"><i class="fa-solid fa-chair mr-1"></i> นั่งพัก/ทางเข้า</button>
@@ -168,8 +165,8 @@
             L.control.zoom({ position: 'bottomright' }).addTo(map);
 
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
-                maxZoom: 22,          // ระดับซูมสูงสุดที่ให้ผู้ใช้ไถจอซูมเข้าได้ (ปรับเลขได้ตามต้องการ)
-                maxNativeZoom: 19,    // ระดับภาพคมชัดสุดของเซิร์ฟเวอร์ (ป้องกันแผนที่เทา)
+                maxZoom: 22,
+                maxNativeZoom: 19,
                 attribution: '© OpenStreetMap contributors' 
             }).addTo(map);
 
@@ -199,6 +196,7 @@
 
         const CATEGORIES = {
             building: ['faculty', 'facility'],
+            sacred: ['sacred'],
             food: ['coffee', 'food'],
             transport: ['stairs', 'elevator'],
             service: ['rest', 'entrance', 'other']
@@ -214,25 +212,20 @@
         function shouldShowMarker(type) {
             const currentZoom = map.getZoom();
 
-            // --- ส่วนที่แก้ไข: ถ้าซูมใกล้เกินไป (Level 19 ขึ้นไป) ให้ซ่อนตึก/ส่วนกลาง ---
             if (currentZoom >= 20) {
                 if (['faculty', 'facility'].includes(type)) return false;
             }
-            // ----------------------------------------------------------
 
             if (currentFilter !== 'all') {
                 const allowedTypes = CATEGORIES[currentFilter] || [];
                 return allowedTypes.includes(type);
             }
 
-            // โหมด 'ทั้งหมด' (all): ตึก/ส่วนกลางปกติจะโชว์ตลอด แต่โดนดักด้วยเงื่อนไข Zoom ข้างบนแล้ว
-            if (['faculty', 'facility'].includes(type)) return true;
+            if (['faculty', 'facility', 'sacred'].includes(type)) return true;
 
-            // ไอคอนเล็กอื่นๆ (ของกิน/ขนส่ง) จะโชว์เมื่อซูมถึงจุดที่กำหนด
             return currentZoom >= ZOOM_THRESHOLD;
         }
 
-        // --- แก้ไขโค้ดส่วนสร้าง Popup ตรงนี้ ---
         window.closeCustomPopup = function() {
             map.closePopup();
         }
@@ -258,7 +251,6 @@
 
                 const marker = L.marker([b.lat, b.lng], { icon: customIcon }).addTo(map);
                 
-                // ตรวจสอบว่ามีรูปภาพหรือไม่ (รองรับลิงก์รูป)
                 let imageHtml = '';
                 if (b.image_url && b.image_url.trim() !== '') {
                     imageHtml = `
@@ -267,7 +259,6 @@
                     </div>`;
                 }
 
-                // โครงสร้าง Popup ตามดีไซน์
                 let popupContent = `
                     <div class="font-sans bg-white p-5 pb-4 relative">
                         <button onclick="window.closeCustomPopup()" class="absolute top-4 right-4 w-7 h-7 bg-orange-500 text-white rounded-full flex items-center justify-center hover:bg-orange-600 transition shadow-md z-10">
@@ -314,6 +305,7 @@
             switch(type) {
                 case 'faculty': return { icon: 'fa-graduation-cap', style: 'pin-faculty', label: 'คณะ/อาคาร', color: 'text-[#EE3F0B]', size: 34 };
                 case 'facility': return { icon: 'fa-building-columns', style: 'pin-facility', label: 'ส่วนกลาง', color: 'text-[#EE3F0B]', size: 34 };
+                case 'sacred': return { icon: 'fa-place-of-worship', style: 'pin-sacred', label: 'สิ่งศักดิ์สิทธิ์/ศาล', color: 'text-[#D4AF37]', size: 32 };
                 case 'stairs': return { icon: 'fa-stairs', style: 'pin-transport', label: 'บันได', color: 'text-purple-600', size: 26 };
                 case 'elevator': return { icon: 'fa-elevator', style: 'pin-transport', label: 'ลิฟต์', color: 'text-purple-600', size: 26 };
                 case 'coffee': return { icon: 'fa-mug-hot', style: 'pin-food', label: 'ร้านน้ำ/กาแฟ', color: 'text-yellow-600', size: 28 };
@@ -324,10 +316,8 @@
             }
         }
 
-        // --- เพิ่มรองรับ image_url ในส่วนของ Admin ---
         async function fetchBuildings() {
             try {
-                // ต้องชัวร์ว่าตาราง buildings มี column 'image_url' แล้ว
                 const { data, error } = await supabaseClient.from('buildings').select('*');
                 if (error) throw error;
                 allBuildingsData = data;
@@ -360,6 +350,7 @@
             const types = [
                 { val: 'faculty', label: '🏫 คณะ/ตึกเรียน' },
                 { val: 'facility', label: '🏛️ ส่วนกลาง/ห้องสมุด' },
+                { val: 'sacred', label: '🙏 สิ่งศักดิ์สิทธิ์/ศาล' },
                 { val: 'coffee', label: '☕ ร้านน้ำ/กาแฟ' },
                 { val: 'food', label: '🍲 โรงอาหาร' },
                 { val: 'stairs', label: '🪜 บันได' },
@@ -431,7 +422,6 @@
             }
         }
 
-        // --- Search ---
         function handleSearch() {
             const q = document.getElementById('search-input').value.toLowerCase();
             const box = document.getElementById('search-results-box');
