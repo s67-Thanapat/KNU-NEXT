@@ -79,7 +79,7 @@
 
     <main class="w-full max-w-7xl mx-auto px-4 mt-6">
         <div class="relative w-full h-48 md:h-80 rounded-2xl overflow-hidden shadow-lg mb-8 group cursor-pointer">
-            <img src="https://images.unsplash.com/photo-1541339907198-e08756dedf3f?ixlib=rb-1.2.1&auto=format&fit=crop&w=1600&q=80" class="w-full h-full object-cover">
+            <img src="https://static.thairath.co.th/media/dFQROr7oWzulq5FZWt1fGw730nTvpuUkKdNBzPEfVYibHzT9f7HhlCvtplkPsajAU2E.jpg" class="w-full h-full object-cover">
             <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex items-end p-6 md:p-10">
                 <div class="md:max-w-2xl">
                     <span class="bg-kmutnb-main text-white text-[10px] md:text-xs px-3 py-1 rounded-full mb-3 inline-block font-bold">ประชาสัมพันธ์</span>
@@ -151,49 +151,86 @@
         }
 
         // --- ตั้งค่าเมนู และ สิทธิ์การเข้าถึง (อัปเดตลิงก์แล้ว) ---
+        // กำหนดข้อมูลเมนูพร้อมระบุหมวดหมู่ (Category)
         const allMenus = [
-            // [Student ONLY]
-            { name: 'ACIS', icon: 'fa-graduation-cap', color: 'text-kmutnb-main', bg: 'bg-orange-50', type: 'student', link: 'acis.html' },
-            { name: 'ตารางเรียน', icon: 'fa-calendar-days', color: 'text-pink-500', bg: 'bg-pink-50', type: 'student', link: 'schedule.html' },
-            { name: 'เกรด', icon: 'fa-chart-simple', color: 'text-purple-500', bg: 'bg-purple-50', type: 'student', link: 'grade.html' },
-            { name: 'จ่ายค่าเทอม', icon: 'fa-qrcode', color: 'text-green-500', bg: 'bg-green-50', type: 'student', link: 'pay.html' },
-            { name: 'จองส่วนกลาง', icon: 'fa-users-rectangle', color: 'text-rose-500', bg: 'bg-rose-50', type: 'student', link: 'facility.html' },
-            { name: 'ห้องสมุด', icon: 'fa-book-open', color: 'text-teal-500', bg: 'bg-teal-50', type: 'student', link: 'library.html' },
+            // หมวดหมู่: การศึกษา (Education)
+            { name: 'ACIS', icon: 'fa-graduation-cap', color: 'text-orange-600', bg: 'bg-orange-50', type: 'student', link: 'acis.html', category: 'edu' },
+            { name: 'ตารางเรียน', icon: 'fa-calendar-days', color: 'text-pink-500', bg: 'bg-pink-50', type: 'student', link: 'schedule.html', category: 'edu' },
+            { name: 'เกรด', icon: 'fa-chart-simple', color: 'text-purple-500', bg: 'bg-purple-50', type: 'student', link: 'grade.html', category: 'edu' },
+            { name: 'จ่ายค่าเทอม', icon: 'fa-qrcode', color: 'text-green-500', bg: 'bg-green-50', type: 'student', link: 'pay.html', category: 'edu' },
+            { name: 'งานทะเบียน', icon: 'fa-user-tie', color: 'text-indigo-600', bg: 'bg-indigo-50', type: 'all', link: 'reg.html', category: 'edu' },
+            { name: 'หลักสูตร', icon: 'fa-book-journal-whills', color: 'text-yellow-700', bg: 'bg-yellow-50', type: 'all', link: 'course.html', category: 'edu' },
 
-            // [ALL Users]
-            { name: 'ที่จอดรถ', icon: 'fa-square-parking', color: 'text-sky-600', bg: 'bg-sky-50', type: 'all', link: 'park.html' },
-            { name: 'งานทะเบียน', icon: 'fa-user-tie', color: 'text-indigo-600', bg: 'bg-indigo-50', type: 'all', link: 'reg.html' },
-            { name: 'หลักสูตร', icon: 'fa-book-journal-whills', color: 'text-yellow-600', bg: 'bg-yellow-50', type: 'all', link: 'course.html' },
-            { name: 'ทุนการศึกษา', icon: 'fa-sack-dollar', color: 'text-green-600', bg: 'bg-green-50', type: 'all', link: 'scholarships.html' },
-            { name: 'หาหอพัก', icon: 'fa-bed', color: 'text-blue-400', bg: 'bg-blue-50', type: 'all', link: 'finddorm.html' },
-            { name: 'ติวเตอร์', icon: 'fa-chalkboard-user', color: 'text-purple-600', bg: 'bg-purple-50', type: 'all', link: 'tutor.html' },
-            { name: 'รถมหาลัย', icon: 'fa-bus', color: 'text-blue-500', bg: 'bg-blue-50', type: 'all', link: 'kmutbus.html' },
-            { name: 'บริการขนส่ง', icon: 'fa-truck-fast', color: 'text-slate-600', bg: 'bg-slate-50', type: 'all', link: 'transervice.html' },
-            { name: 'ร้านซ่อม', icon: 'fa-wrench', color: 'text-gray-600', bg: 'bg-gray-100', type: 'all', link: 'fixshop.html' },
-            { name: 'ความบันเทิง', icon: 'fa-icons', color: 'text-pink-400', bg: 'bg-pink-50', type: 'all', link: 'entertainment.html' },
-            { name: 'ร้านอาหาร', icon: 'fa-utensils', color: 'text-orange-400', bg: 'bg-orange-50', type: 'all', link: 'canteen.html' },
-            { name: 'แผนที่อาคาร', icon: 'fa-map', color: 'text-indigo-500', bg: 'bg-indigo-50', type: 'all', link: 'map.html' },
+            // หมวดหมู่: สิ่งอำนวยความสะดวก (Facilities)
+            { name: 'จองส่วนกลาง', icon: 'fa-users-rectangle', color: 'text-rose-500', bg: 'bg-rose-50', type: 'student', link: 'facility.html', category: 'fac' },
+            { name: 'ห้องสมุด', icon: 'fa-book-open', color: 'text-teal-500', bg: 'bg-teal-50', type: 'student', link: 'library.html', category: 'fac' },
+            { name: 'ที่จอดรถ', icon: 'fa-square-parking', color: 'text-sky-600', bg: 'bg-sky-50', type: 'all', link: 'park.html', category: 'fac' },
+            { name: 'รถมหาลัย', icon: 'fa-bus', color: 'text-blue-500', bg: 'bg-blue-50', type: 'all', link: 'kmutbus.html', category: 'fac' },
+            { name: 'บริการขนส่ง', icon: 'fa-truck-fast', color: 'text-slate-600', bg: 'bg-slate-50', type: 'all', link: 'transervice.html', category: 'fac' },
+
+            // หมวดหมู่: ไลฟ์สไตล์ (Lifestyle)
+            { name: 'หาหอพัก', icon: 'fa-bed', color: 'text-blue-400', bg: 'bg-blue-50', type: 'all', link: 'finddorm.html', category: 'life' },
+            { name: 'ติวเตอร์', icon: 'fa-chalkboard-user', color: 'text-purple-600', bg: 'bg-purple-50', type: 'all', link: 'tutor.html', category: 'life' },
+            { name: 'ร้านอาหาร', icon: 'fa-utensils', color: 'text-orange-400', bg: 'bg-orange-50', type: 'all', link: 'canteen.html', category: 'life' },
+            { name: 'ทุนการศึกษา', icon: 'fa-sack-dollar', color: 'text-green-600', bg: 'bg-green-50', type: 'all', link: 'scholarships.html', category: 'life' },
+            { name: 'ความบันเทิง', icon: 'fa-icons', color: 'text-pink-400', bg: 'bg-pink-50', type: 'all', link: 'entertainment.html', category: 'life' },
+            { name: 'ร้านซ่อม', icon: 'fa-wrench', color: 'text-gray-600', bg: 'bg-gray-100', type: 'all', link: 'fixshop.html', category: 'life' },
+
+            // หมวดหมู่: ข้อมูล (Info)
+            { name: 'แผนที่อาคาร', icon: 'fa-map', color: 'text-indigo-500', bg: 'bg-indigo-50', type: 'all', link: 'map.html', category: 'info' },
+        ];
+
+        // กำหนดหัวข้อหมวดหมู่
+        const categoryLabels = [
+            { id: 'edu', label: 'ด้านการศึกษา', icon: 'fa-book' },
+            { id: 'fac', label: 'สิ่งอำนวยความสะดวก', icon: 'fa-building' },
+            { id: 'life', label: 'ไลฟ์สไตล์และบริการ', icon: 'fa-star' },
+            { id: 'info', label: 'ข้อมูลและแผนที่', icon: 'fa-map-location-dot' }
         ];
 
         function renderMenu() {
             const container = document.getElementById('quick-menu-grid');
             container.innerHTML = ''; 
+            
+            // ตั้งค่า Container หลักให้เป็นพื้นหลังโปร่งใส เพื่อให้ Card ด้านในเด่นขึ้น
+            container.className = "space-y-6"; 
 
-            allMenus.forEach(menu => {
-                // กรอง: ถ้าเป็น Guest และเมนู type เป็น student -> ไม่แสดง
-                if (userType === 'guest' && menu.type === 'student') return;
+            categoryLabels.forEach(cat => {
+                // กรองเมนูตามหมวดหมู่
+                const filteredMenus = allMenus.filter(menu => menu.category === cat.id);
+                
+                if (filteredMenus.length === 0) return;
 
-                // ตรวจสอบว่ามี Link เฉพาะไหม ถ้าไม่มีให้ใส่ #
-                const targetLink = menu.link ? menu.link : '#';
+                // สร้างกลุ่มหมวดหมู่ที่มีกรอบพื้นหลังสีขาว (White Card)
+                let categoryHtml = `
+                    <div class="bg-white p-5 md:p-6 rounded-3xl shadow-sm border border-gray-50">
+                        <div class="flex items-center gap-2 mb-6 border-l-4 border-kmutnb-main pl-3">
+                            <i class="fa-solid ${cat.icon} text-gray-400 text-sm"></i>
+                            <h3 class="font-bold text-gray-800 text-sm md:text-base">${cat.label}</h3>
+                        </div>
+                        
+                        <div class="grid grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-y-8 gap-x-2 text-center">
+                `;
 
-                const html = `
-                <a href="${targetLink}" class="group flex flex-col items-center hover:-translate-y-1 transition duration-300 p-2">
-                    <div class="w-12 h-12 md:w-14 md:h-14 ${menu.bg} rounded-2xl shadow-sm flex items-center justify-center mb-2 group-hover:shadow-md border border-gray-100 relative">
-                        <i class="fa-solid ${menu.icon} text-xl md:text-2xl ${menu.color}"></i>
+                filteredMenus.forEach(menu => {
+                    if (userType === 'guest' && menu.type === 'student') return;
+
+                    const targetLink = menu.link ? menu.link : '#';
+                    categoryHtml += `
+                        <a href="${targetLink}" class="group flex flex-col items-center hover:-translate-y-1 transition duration-300">
+                            <div class="w-12 h-12 md:w-16 md:h-16 ${menu.bg} rounded-2xl flex items-center justify-center mb-2 group-hover:shadow-md transition-all border border-white">
+                                <i class="fa-solid ${menu.icon} text-xl md:text-2xl ${menu.color}"></i>
+                            </div>
+                            <span class="text-[10px] md:text-xs text-gray-600 font-medium leading-tight px-1">${menu.name}</span>
+                        </a>`;
+                });
+
+                categoryHtml += `
+                        </div>
                     </div>
-                    <span class="text-xs text-gray-600 font-medium truncate w-full px-1 leading-tight">${menu.name}</span>
-                </a>`;
-                container.innerHTML += html;
+                `;
+
+                container.innerHTML += categoryHtml;
             });
         }
 
