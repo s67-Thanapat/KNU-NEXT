@@ -98,7 +98,7 @@
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         // --------------------------------------------------------
-        // 1. User & Session Management
+        // 1. User & Session Management 
         // --------------------------------------------------------
         let userData = JSON.parse(sessionStorage.getItem('userData')) || {};
         let userType = sessionStorage.getItem('userType') || 'guest';
