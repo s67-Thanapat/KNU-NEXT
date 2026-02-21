@@ -1,1 +1,645 @@
-// บริการขนส่ง
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KMUTNB Transport - ค้นหาเส้นทาง</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        kmutnb: { main: '#6366f1', light: '#818cf8', dark: '#1e3a8a' },
+                    },
+                    fontFamily: { sans: ['Prompt', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { font-family: 'Prompt', sans-serif; }
+        #map { height: calc(100vh - 64px); width: 100%; z-index: 0; }
+        
+        /* Pin Style */
+        .custom-pin {
+            background-color: white;
+            border-radius: 50%;
+            border: 2px solid #6366f1;
+            text-align: center;
+            font-size: 16px;
+            padding-top: 4px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: all 0.2s;
+        }
+        .custom-pin:hover {
+            transform: scale(1.15);
+            background-color: #6366f1;
+            color: white !important;
+            border-color: white;
+            z-index: 999;
+        }
+        .custom-pin i { transition: color 0.2s; }
+        .custom-pin:hover i { color: white !important; }
+
+        .leaflet-popup-content-wrapper { border-radius: 12px; }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Bus Sidebar Animation */
+        #bus-sidebar {
+            transition: transform 0.3s ease-in-out;
+            box-shadow: 4px 0 15px rgba(0,0,0,0.1);
+        }
+        .sidebar-hidden { transform: translateX(-100%); }
+        .sidebar-visible { transform: translateX(0); }
+    </style>
+</head>
+<body class="bg-gray-100 h-screen overflow-hidden flex flex-col relative">
+
+    <header class="bg-white shadow-md z-20 flex flex-col shrink-0 relative">
+        <div class="h-16 flex items-center justify-between px-4 border-b border-gray-100">
+            <div class="flex items-center gap-3">
+                <a href="index.html" class="w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 transition">
+                    <i class="fa-solid fa-arrow-left"></i>
+                </a>
+                <div>
+                    <h1 class="text-lg font-bold text-gray-800 leading-none">KMUTNB Transport</h1>
+                    <span id="user-status-text" class="text-xs text-gray-500">กำลังโหลด...</span>
+                </div>
+            </div>
+
+            <button onclick="handleTopRightButton()" id="action-btn" class="bg-kmutnb-main hover:bg-indigo-700 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg transition flex items-center gap-2">
+                <i class="fa-solid fa-gear"></i>
+                <span id="action-btn-text" class="hidden sm:inline">จัดการระบบ</span>
+            </button>
+        </div>
+    </header>
+
+    <div class="absolute top-20 left-1/2 -translate-x-1/2 w-[95%] sm:w-[600px] z-[500] flex flex-col gap-2 pointer-events-none">
+        <div class="bg-white p-2 rounded-xl shadow-lg pointer-events-auto flex items-center gap-2 w-full">
+            <i class="fa-solid fa-magnifying-glass text-gray-400 ml-2"></i>
+            <input type="text" id="search-input" onkeyup="applyFilters()" 
+                   class="w-full bg-transparent outline-none text-sm text-gray-700 placeholder-gray-400" 
+                   placeholder="ค้นหาสายรถเมล์, วิน, ป้ายรถตู้...">
+        </div>
+
+        <div class="flex gap-2 overflow-x-auto scrollbar-hide pointer-events-auto pb-1 sm:flex-wrap justify-center w-full" id="filter-container">
+            <button onclick="setFilter('all')" id="btn-all" class="filter-btn bg-gray-800 text-white px-3 py-1.5 rounded-full text-xs font-medium shadow whitespace-nowrap border border-transparent transition cursor-pointer">ทั้งหมด</button>
+            <button onclick="toggleBusSidebar()" id="btn-bus" class="filter-btn bg-white text-gray-600 px-3 py-1.5 rounded-full text-xs font-medium shadow whitespace-nowrap border border-gray-200 hover:bg-blue-50 transition cursor-pointer flex items-center gap-1">
+                <i class="fa-solid fa-bus"></i> รถเมล์
+            </button>
+            <button onclick="setFilter('motorcycle')" id="btn-motorcycle" class="filter-btn bg-white text-gray-600 px-3 py-1.5 rounded-full text-xs font-medium shadow whitespace-nowrap border border-gray-200 hover:bg-gray-50 transition cursor-pointer">🛵 วินมอเตอร์ไซค์</button>
+            <button onclick="setFilter('van')" id="btn-van" class="filter-btn bg-white text-gray-600 px-3 py-1.5 rounded-full text-xs font-medium shadow whitespace-nowrap border border-gray-200 hover:bg-gray-50 transition cursor-pointer">🚐 รถตู้รับส่ง</button>
+        </div>
+    </div>
+
+    <div id="map" class="h-full w-full absolute top-16 left-0 z-0"></div>
+
+    <div id="bus-sidebar" class="sidebar-hidden absolute top-16 left-0 h-[calc(100vh-64px)] w-[280px] bg-blue-600 z-[600] flex flex-col shadow-2xl overflow-y-auto">
+        
+        <div class="bg-blue-800 text-white px-4 py-4 flex items-center gap-3 sticky top-0 z-10 shadow-md cursor-pointer" onclick="toggleBusSidebar()">
+            <i class="fa-solid fa-arrow-right text-xl"></i>
+            <h2 class="text-xl font-bold tracking-wide">เส้นทางรถเมล์</h2>
+        </div>
+
+        <div class="p-3 flex flex-col gap-4">
+            <div class="bg-blue-100 rounded-md overflow-hidden shadow-sm">
+                <div class="bg-blue-200 px-3 py-2 flex items-center gap-2 font-bold text-gray-800 text-sm border-b border-blue-300">
+                    <i class="fa-solid fa-arrow-down"></i> ผ่านหน้ามอ
+                </div>
+                <div id="bus-front-list" class="p-2 flex flex-col gap-2">
+                    </div>
+            </div>
+
+            <div class="bg-blue-100 rounded-md overflow-hidden shadow-sm">
+                <div class="bg-blue-200 px-3 py-2 flex items-center gap-2 font-bold text-gray-800 text-sm border-b border-blue-300">
+                    <i class="fa-solid fa-arrow-down"></i> ผ่านหลังมอ (ถ.วงศ์สว่าง)
+                </div>
+                <div id="bus-back-list" class="p-2 flex flex-col gap-2">
+                    </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        // --------------------------------------------------------
+        // Config Supabase (ใส่ Key เดิมของคุณได้เลย)
+        // --------------------------------------------------------
+        const SUPABASE_URL = 'https://hcjquegorteantfzckpf.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_3bK3c4hh7hu37K0XxCzXVA_-5rJH89L'; 
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // --------------------------------------------------------
+        // Data & State
+        // --------------------------------------------------------
+        let userData = JSON.parse(sessionStorage.getItem('userData')) || {};
+        let userType = sessionStorage.getItem('userType') || 'guest';
+        if(userData.role === 'admin') userType = 'admin'; // Override เพื่อจำลองเป็น Admin ได้ถ้าเข้าผ่านระบบ Login
+
+        let map;
+        let markers = [];
+        let all_data = [];
+        let currentFilter = 'all';
+        let isBusSidebarOpen = false;
+
+        // Icon Mapping สำหรับหมุดบนแผนที่
+        const MAP_CONFIG = {
+            'motorcycle': { icon: 'fa-motorcycle', color: '#f97316', label: 'วินมอเตอร์ไซค์' }, // สีส้ม
+            'van': { icon: 'fa-van-shuttle', color: '#8b5cf6', label: 'รถตู้รับส่ง' }         // สีม่วง
+        };
+
+        // --------------------------------------------------------
+        // Initialization
+        // --------------------------------------------------------
+        function updateUI() {
+            const statusText = document.getElementById('user-status-text');
+            const btnText = document.getElementById('action-btn-text');
+            const btnIcon = document.querySelector('#action-btn i');
+
+            if (userType === 'admin') {
+                statusText.innerText = 'Admin: แตะแผนที่เพื่อเพิ่มปักหมุด / จัดการรถเมล์ที่ปุ่มขวาบน';
+                statusText.className = 'text-xs text-red-600 font-bold';
+                btnText.innerText = 'จัดการระบบ';
+                btnIcon.className = 'fa-solid fa-pen-to-square';
+            } else {
+                statusText.innerText = 'แตะหมุดเพื่อดูข้อมูล หรือ ดูสายรถเมล์';
+                statusText.className = 'text-xs text-gray-500';
+                btnText.innerText = 'แนะนำ/แจ้งปัญหา';
+                btnIcon.className = 'fa-regular fa-paper-plane';
+            }
+        }
+
+        function initMap() {
+            const KMUTNB_LAT = 13.819077;
+            const KMUTNB_LNG = 100.514332;
+            
+            map = L.map('map', { zoomControl: false }).setView([KMUTNB_LAT, KMUTNB_LNG], 16);
+            L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap'
+            }).addTo(map);
+
+            fetchData();
+
+            // Admin: Click map to ADD map pin (วิน / รถตู้)
+            map.on('click', function(e) {
+                if (userType === 'admin' && !isBusSidebarOpen) {
+                    openAddPinModal(e.latlng.lat, e.latlng.lng);
+                }
+            });
+        }
+
+        // --------------------------------------------------------
+        // UI & Filtering Logic
+        // --------------------------------------------------------
+        function toggleBusSidebar() {
+            const sidebar = document.getElementById('bus-sidebar');
+            const btnBus = document.getElementById('btn-bus');
+            
+            isBusSidebarOpen = !isBusSidebarOpen;
+
+            if(isBusSidebarOpen) {
+                sidebar.classList.remove('sidebar-hidden');
+                sidebar.classList.add('sidebar-visible');
+                btnBus.classList.replace('bg-white', 'bg-blue-600');
+                btnBus.classList.replace('text-gray-600', 'text-white');
+            } else {
+                sidebar.classList.remove('sidebar-visible');
+                sidebar.classList.add('sidebar-hidden');
+                btnBus.classList.replace('bg-blue-600', 'bg-white');
+                btnBus.classList.replace('text-white', 'text-gray-600');
+            }
+        }
+
+        function setFilter(type) {
+            currentFilter = type;
+            
+            // ปิด Sidebar ของรถเมล์ถ้าเปิดอยู่
+            if (isBusSidebarOpen) toggleBusSidebar();
+            
+            // อัปเดตสีปุ่ม
+            document.querySelectorAll('.filter-btn:not(#btn-bus)').forEach(btn => {
+                btn.className = "filter-btn bg-white text-gray-600 px-3 py-1.5 rounded-full text-xs font-medium shadow whitespace-nowrap border border-gray-200 hover:bg-gray-50 transition cursor-pointer";
+            });
+            
+            const activeBtn = document.getElementById(`btn-${type}`);
+            if(activeBtn && type !== 'bus') {
+                activeBtn.className = "filter-btn bg-gray-800 text-white px-3 py-1.5 rounded-full text-xs font-medium shadow whitespace-nowrap border border-transparent transition cursor-pointer";
+            }
+
+            applyFilters();
+        }
+
+        function applyFilters() {
+            const searchText = document.getElementById('search-input').value.toLowerCase();
+            
+            // กรองข้อมูลสำหรับปักหมุด (Map)
+            const mapData = all_data.filter(item => {
+                if (item.type === 'bus_front' || item.type === 'bus_back') return false; // ไม่เอาไปแสดงใน Map
+                const matchCategory = (currentFilter === 'all') || (item.type === currentFilter);
+                const name = (item.name || '').toLowerCase();
+                return matchCategory && name.includes(searchText);
+            });
+
+            renderPins(mapData);
+            
+            // กรองข้อมูลสำหรับรถเมล์ (Sidebar)
+            const busData = all_data.filter(item => {
+                if (item.type !== 'bus_front' && item.type !== 'bus_back') return false;
+                const name = (item.name || '').toLowerCase();
+                return name.includes(searchText);
+            });
+
+            renderBuses(busData);
+        }
+
+        // --------------------------------------------------------
+        // CRUD Operations
+        // --------------------------------------------------------
+        async function fetchData() {
+            try {
+                // สมมติชื่อ Table ว่า 'transport'
+                const { data, error } = await supabaseClient
+                    .from('transport') 
+                    .select('*')
+                    .order('id', { ascending: true });
+
+                if (error) throw error;
+                
+                all_data = data; 
+                applyFilters();
+
+            } catch (err) {
+                console.error('Error:', err);
+                Swal.fire('ข้อความจากระบบ', 'ยังไม่มี Table ชื่อ transport ใน Supabase กรุณาสร้างก่อน', 'info');
+            }
+        }
+
+        async function saveToDB(payload) {
+            try {
+                Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                const { error } = await supabaseClient.from('transport').insert([payload]);
+                if (error) throw error;
+
+                Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ', timer: 1500, showConfirmButton: false });
+                fetchData(); 
+            } catch (err) {
+                Swal.fire('Error', 'บันทึกไม่สำเร็จ', 'error');
+            }
+        }
+
+        async function updateInDB(id, payload) {
+            try {
+                const { error } = await supabaseClient.from('transport').update(payload).eq('id', id);
+                if (error) throw error;
+
+                Swal.fire({ icon: 'success', title: 'อัปเดตเรียบร้อย', timer: 1500, showConfirmButton: false });
+                fetchData();
+            } catch (err) {
+                Swal.fire('Error', 'อัปเดตไม่สำเร็จ', 'error');
+            }
+        }
+
+        window.deleteData = async function(id) {
+            const result = await Swal.fire({
+                title: 'ยืนยันการลบ?',
+                text: "ลบแล้วจะไม่สามารถกู้คืนได้",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#EF4444',
+                confirmButtonText: 'ลบเลย',
+                cancelButtonText: 'ยกเลิก'
+            });
+
+            if (result.isConfirmed) {
+                try {
+                    const { error } = await supabaseClient.from('transport').delete().eq('id', id);
+                    if (error) throw error;
+                    Swal.fire({ icon: 'success', title: 'ลบเรียบร้อย', timer: 1000, showConfirmButton: false });
+                    fetchData();
+                } catch (err) {
+                    Swal.fire('Error', 'ลบไม่สำเร็จ', 'error');
+                }
+            }
+        }
+
+        // --------------------------------------------------------
+        // Render Map Pins (วิน / รถตู้)
+        // --------------------------------------------------------
+        function renderPins(data) {
+            markers.forEach(m => map.removeLayer(m));
+            markers = [];
+
+            data.forEach(item => {
+                const style = MAP_CONFIG[item.type];
+                if (!style) return;
+                
+                const customIcon = L.divIcon({
+                    className: 'custom-div-icon',
+                    html: `<div class="custom-pin" style="color: ${style.color}; border-color: ${style.color}">
+                               <i class="fa-solid ${style.icon}"></i>
+                           </div>`,
+                    iconSize: [36, 36], iconAnchor: [18, 36], popupAnchor: [0, -38]
+                });
+
+                const marker = L.marker([item.lat, item.lng], { icon: customIcon }).addTo(map);
+                
+                let popupContent = `
+                    <div class="text-center font-sans p-1 min-w-[200px]">
+                        <div class="text-xs font-bold uppercase mb-1 px-2 py-0.5 rounded-md inline-block text-white" style="background-color: ${style.color}">
+                            ${style.label}
+                        </div>
+                        <h3 class="font-bold text-lg text-gray-800 mb-1 mt-1">${item.name}</h3>
+                        
+                        ${item.details ? `<div class="text-sm text-gray-600 mb-3 bg-gray-50 p-2 rounded border border-gray-100 text-left whitespace-pre-line max-h-32 overflow-y-auto">${item.details}</div>` : ''}
+                `;
+
+                popupContent += `
+                    <div class="flex gap-2 justify-center flex-wrap pt-2 border-t border-gray-100">
+                        <a href="https://www.google.com/maps/dir/?api=1&destination=${item.lat},${item.lng}" target="_blank"
+                           class="w-full bg-blue-600 hover:bg-blue-700 !text-white text-sm px-3 py-2 rounded-lg flex items-center justify-center gap-2 shadow transition no-underline">
+                            <i class="fa-solid fa-location-arrow"></i> นำทางไปจุดนี้
+                        </a>
+                `;
+
+                if (userType === 'admin') {
+                    popupContent += `
+                        <div class="flex gap-2 w-full mt-1">
+                            <button onclick="window.openEditModal(${item.id}, 'map')" class="flex-1 bg-yellow-500 text-white text-xs px-2 py-1.5 rounded-lg shadow">แก้ไข</button>
+                            <button onclick="deleteData(${item.id})" class="flex-1 bg-red-500 text-white text-xs px-2 py-1.5 rounded-lg shadow">ลบ</button>
+                        </div>
+                    `;
+                }
+
+                popupContent += `</div></div>`;
+                marker.bindPopup(popupContent);
+                markers.push(marker); 
+            });
+        }
+
+        // --------------------------------------------------------
+        // Render Bus List (Sidebar)
+        // --------------------------------------------------------
+        function renderBuses(data) {
+            const frontList = document.getElementById('bus-front-list');
+            const backList = document.getElementById('bus-back-list');
+            
+            frontList.innerHTML = '';
+            backList.innerHTML = '';
+
+            data.forEach(item => {
+                // แก้ไขตรง onclick: เอาเงื่อนไข userType ออก เพื่อให้ทุกคน (รวมถึง Admin) กดเปิดลิงก์ได้
+                const busHTML = `
+                    <div class="relative group">
+                        <div onclick="window.open('${item.url_contact || '#'}', '_blank')" 
+                             class="bg-[#1e3a8a] hover:bg-blue-900 cursor-pointer text-white font-bold py-2 px-3 rounded shadow-sm flex items-center gap-3 transition-colors border border-blue-900">
+                            <div class="w-3 h-3 bg-white rounded-full shrink-0"></div>
+                            <span class="flex-1 text-center text-lg tracking-wide">${item.name}</span>
+                        </div>
+                        
+                        ${userType === 'admin' ? `
+                        <div class="absolute -right-2 -top-2 hidden group-hover:flex gap-1 z-10 bg-white p-1 rounded-md shadow-lg border border-gray-200">
+                            <button onclick="window.openEditModal(${item.id}, 'bus')" class="w-7 h-7 bg-yellow-400 text-white rounded-md flex items-center justify-center text-xs shadow-sm hover:bg-yellow-500">
+                                <i class="fa-solid fa-pen"></i>
+                            </button>
+                            <button onclick="deleteData(${item.id})" class="w-7 h-7 bg-red-500 text-white rounded-md flex items-center justify-center text-xs shadow-sm hover:bg-red-600">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+
+                if(item.type === 'bus_front') {
+                    frontList.innerHTML += busHTML;
+                } else if (item.type === 'bus_back') {
+                    backList.innerHTML += busHTML;
+                }
+            });
+
+            if(frontList.innerHTML === '') frontList.innerHTML = '<div class="text-sm text-gray-500 text-center py-2">ไม่มีข้อมูล</div>';
+            if(backList.innerHTML === '') backList.innerHTML = '<div class="text-sm text-gray-500 text-center py-2">ไม่มีข้อมูล</div>';
+        }
+
+        // --------------------------------------------------------
+        // Modals (แอดมิน / ผู้ใช้)
+        // --------------------------------------------------------
+
+        function handleTopRightButton() {
+            if (userType === 'admin') {
+                Swal.fire({
+                    title: 'จัดการระบบ',
+                    text: 'เลือกสิ่งที่ต้องการเพิ่มข้อมูล',
+                    icon: 'question',
+                    showDenyButton: true,
+                    showCancelButton: true,
+                    confirmButtonText: '<i class="fa-solid fa-location-dot"></i> จุดวิน/รถตู้ (พิกัด)',
+                    denyButtonText: `<i class="fa-solid fa-bus"></i> สายรถเมล์`,
+                    cancelButtonText: 'ยกเลิก',
+                    confirmButtonColor: '#0284c7',
+                    denyButtonColor: '#1e3a8a'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        openManualAddPinModal();
+                    } else if (result.isDenied) {
+                        openAddBusModal();
+                    }
+                });
+            } else {
+                Swal.fire({
+                    title: 'แนะนำ/แจ้งปัญหา',
+                    input: 'textarea',
+                    inputPlaceholder: 'พิมพ์ข้อความที่นี่...',
+                    showCancelButton: true,
+                    confirmButtonText: 'ส่งข้อมูล',
+                    confirmButtonColor: '#EE3F0B'
+                });
+            }
+        }
+
+        // --- เพิ่มสายรถเมล์ ---
+        async function openAddBusModal() {
+            const { value: v } = await Swal.fire({
+                title: 'เพิ่มข้อมูลสายรถเมล์',
+                html: `
+                    <div class="text-left text-sm text-gray-500 mb-1">เส้นทาง (เลือกหมวดหมู่)</div>
+                    <select id="b-type" class="swal2-select w-full m-0 mb-3" style="display:flex;">
+                        <option value="bus_front">ผ่านหน้ามอ</option>
+                        <option value="bus_back">ผ่านหลัง ถ.วงศ์สว่าง</option>
+                    </select>
+                    
+                    <div class="text-left text-sm text-gray-500 mb-1">เลขสายรถเมล์ (เช่น 179 / 3-49)</div>
+                    <input id="b-name" class="swal2-input !w-full !m-0 !mb-3">
+                    
+                    <div class="text-left text-sm text-gray-500 mb-1">ลิงก์ข้อมูลเส้นทาง (ให้ผู้ใช้กดเข้าไปดู)</div>
+                    <input id="b-url" class="swal2-input !w-full !m-0" placeholder="https://viabus...">
+                `,
+                focusConfirm: false,
+                showCancelButton: true,
+                confirmButtonText: 'บันทึกรถเมล์',
+                preConfirm: () => {
+                    const name = document.getElementById('b-name').value;
+                    const type = document.getElementById('b-type').value;
+                    const url_contact = document.getElementById('b-url').value;
+                    if (!name) return Swal.showValidationMessage('กรุณาใส่เลขสายรถเมล์');
+                    return { name, type, url_contact, lat: null, lng: null }; // รถเมล์ไม่ต้องมีพิกัด
+                }
+            });
+
+            if (v) saveToDB(v);
+        }
+
+        // --- เพิ่มหมุดบนแผนที่จากการคลิก ---
+        async function openAddPinModal(lat, lng) {
+            const { value: v } = await Swal.fire({
+                title: 'เพิ่มจุด วิน/รถตู้',
+                html: `
+                    <div class="text-left text-sm text-gray-500 mb-1">ชื่อเรียก (เช่น วินหน้ามอ, คิวรถตู้ไปรังสิต)</div>
+                    <input id="swal-name" class="swal2-input !w-full !m-0 !mb-3">
+                    
+                    <div class="text-left text-sm text-gray-500 mb-1">ประเภท</div>
+                    <select id="swal-type" class="swal2-select w-full m-0 mb-3" style="display:flex;">
+                        <option value="motorcycle">🛵 วินมอเตอร์ไซค์</option>
+                        <option value="van">🚐 รถตู้รับส่ง</option>
+                    </select>
+
+                    <div class="text-left text-sm text-gray-500 mb-1">รายละเอียด (ราคา, เวลาทำการ ฯลฯ)</div>
+                    <textarea id="swal-details" class="swal2-textarea !w-full !m-0" style="height:80px;"></textarea>
+                `,
+                focusConfirm: false,
+                showCancelButton: true,
+                confirmButtonText: 'บันทึกพิกัด',
+                preConfirm: () => {
+                    const name = document.getElementById('swal-name').value;
+                    const type = document.getElementById('swal-type').value;
+                    const details = document.getElementById('swal-details').value; // ดึงค่ารายละเอียด
+                    if (!name) return Swal.showValidationMessage('กรุณาใส่ชื่อจุดรับส่ง');
+                    return { name, type, details, lat, lng }; // ส่ง details เข้าฐานข้อมูล
+                }
+            });
+
+            if (v) saveToDB(v);
+        }
+
+        // --- เพิ่มหมุดแบบกรอกพิกัดเอง ---
+        async function openManualAddPinModal() {
+            const { value: v } = await Swal.fire({
+                title: 'เพิ่มจุดรับส่ง (ระบุพิกัด)',
+                html: `
+                    <div class="text-left text-sm text-gray-500 mb-1">ชื่อ</div>
+                    <input id="m-name" class="swal2-input !w-full !m-0 !mb-3">
+                    <div class="grid grid-cols-2 gap-2 mb-3">
+                        <div>
+                            <div class="text-left text-sm text-gray-500">Lat</div>
+                            <input id="m-lat" class="swal2-input !w-full !m-0">
+                        </div>
+                        <div>
+                            <div class="text-left text-sm text-gray-500">Lng</div>
+                            <input id="m-lng" class="swal2-input !w-full !m-0">
+                        </div>
+                    </div>
+                    
+                    <div class="text-left text-sm text-gray-500 mb-1">ประเภท</div>
+                    <select id="m-type" class="swal2-select w-full m-0 !mb-3">
+                        <option value="motorcycle">🛵 วินมอเตอร์ไซค์</option>
+                        <option value="van">🚐 รถตู้รับส่ง</option>
+                    </select>
+
+                    <div class="text-left text-sm text-gray-500 mb-1">รายละเอียด</div>
+                    <textarea id="m-details" class="swal2-textarea !w-full !m-0" style="height:80px;"></textarea>
+                `,
+                showCancelButton: true,
+                preConfirm: () => {
+                    const lat = parseFloat(document.getElementById('m-lat').value);
+                    const lng = parseFloat(document.getElementById('m-lng').value);
+                    if(!document.getElementById('m-name').value || !lat || !lng) return Swal.showValidationMessage('ข้อมูลไม่ครบ');
+                    return { 
+                        name: document.getElementById('m-name').value, 
+                        type: document.getElementById('m-type').value, 
+                        details: document.getElementById('m-details').value, // ดึงค่ารายละเอียด
+                        lat, lng 
+                    };
+                }
+            });
+            if (v) saveToDB(v);
+        }
+
+        // --- แก้ไขข้อมูล (รองรับทั้ง รถเมล์ และ หมุด) ---
+        window.openEditModal = async function(id, mode) {
+            const item = all_data.find(r => r.id === id);
+            if (!item) return;
+
+            let htmlContent = '';
+            
+            if (mode === 'bus') {
+                htmlContent = `
+                    <div class="text-left text-sm text-gray-500 mb-1">เส้นทาง</div>
+                    <select id="e-type" class="swal2-select w-full m-0 mb-3" style="display:flex;">
+                        <option value="bus_front" ${item.type === 'bus_front' ? 'selected' : ''}>ผ่านหน้ามอ</option>
+                        <option value="bus_back" ${item.type === 'bus_back' ? 'selected' : ''}>ผ่านหลัง ถ.วงศ์สว่าง</option>
+                    </select>
+                    <div class="text-left text-sm text-gray-500 mb-1">สายรถเมล์</div>
+                    <input id="e-name" class="swal2-input !w-full !m-0 !mb-3" value="${item.name}">
+                    <div class="text-left text-sm text-gray-500 mb-1">ลิงก์ข้อมูล</div>
+                    <input id="e-url" class="swal2-input !w-full !m-0" value="${item.url_contact || ''}">
+                `;
+            } else {
+                // สำหรับ Map Pin (วิน/รถตู้) เพิ่มช่องรายละเอียด
+                htmlContent = `
+                    <div class="text-left text-sm text-gray-500 mb-1">ชื่อ</div>
+                    <input id="e-name" class="swal2-input !w-full !m-0 !mb-3" value="${item.name}">
+                    <div class="text-left text-sm text-gray-500 mb-1">ประเภท</div>
+                    <select id="e-type" class="swal2-select w-full m-0 mb-3" style="display:flex;">
+                        <option value="motorcycle" ${item.type === 'motorcycle' ? 'selected' : ''}>🛵 วินมอเตอร์ไซค์</option>
+                        <option value="van" ${item.type === 'van' ? 'selected' : ''}>🚐 รถตู้รับส่ง</option>
+                    </select>
+                    <div class="text-left text-sm text-gray-500 mb-1">รายละเอียด</div>
+                    <textarea id="e-details" class="swal2-textarea !w-full !m-0" style="height:80px;">${item.details || ''}</textarea>
+                `;
+            }
+
+            const { value: v } = await Swal.fire({
+                title: 'แก้ไขข้อมูล',
+                html: htmlContent,
+                showCancelButton: true,
+                confirmButtonText: 'บันทึก',
+                confirmButtonColor: '#F59E0B',
+                preConfirm: () => {
+                    const payload = {
+                        name: document.getElementById('e-name').value,
+                        type: document.getElementById('e-type').value
+                    };
+                    
+                    if (mode === 'bus') {
+                        payload.url_contact = document.getElementById('e-url').value;
+                    } else {
+                        // เก็บค่า details เฉพาะหมุดบนแผนที่
+                        payload.details = document.getElementById('e-details').value; 
+                    }
+                    
+                    return payload;
+                }
+            });
+
+            if (v) updateInDB(id, v);
+        }
+
+        // Start App
+        updateUI();
+        initMap();
+
+    </script>
+</body>
+</html>
