@@ -129,7 +129,7 @@
         const KMUTNB_LNG = 100.514332;
         let map;
         let markers = [];
-        let allRestaurantsData = []; // เก็บข้อมูลร้านทั้งหมดไว้เพื่อใช้ตอน Edit
+        let all_tutor_Data = []; // เก็บข้อมูลร้านทั้งหมดไว้เพื่อใช้ตอน Edit
 
         function initMap() {
             map = L.map('map').setView([KMUTNB_LAT, KMUTNB_LNG], 16);
@@ -162,7 +162,7 @@
 
                 if (error) throw error;
                 
-                allRestaurantsData = data; // บันทึกข้อมูลลงตัวแปร Global
+                all_tutor_Data = data; // บันทึกข้อมูลลงตัวแปร Global
                 renderPins(data);
 
             } catch (err) {
@@ -455,7 +455,7 @@
 
         // 3. Modal: แก้ไขข้อมูลที่เรียนพิเศษ
         window.openEditPinModal = async function(id) {
-            const tutor = allRestaurantsData.find(r => r.id === id);
+            const tutor = all_tutor_Data.find(r => r.id === id);
             if (!tutor) return;
 
             const { value: formValues } = await Swal.fire({
@@ -486,7 +486,7 @@
 
             if (formValues) {
                 // อัปเดตข้อมูล (ส่งชื่อ, ประเภท(null), รายละเอียด, และ URL รูปภาพ)
-                updateTutorInSupabase(id, formValues[0], null, formValues[1], formValues[2]);
+                update_tutor_InSupabase(id, formValues[0], null, formValues[1], formValues[2]);
             }
         }
 
