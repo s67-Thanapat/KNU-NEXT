@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KMUTNB NEXT - Smart University</title>
-    
+    <script src="https://unpkg.com/html5-qrcode"></script>
     <script>
         // Check Login
         if (!sessionStorage.getItem('isLoggedIn')) {
@@ -35,6 +35,7 @@
             }
         }
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         body { background-color: #F2F4F8; }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
@@ -118,10 +119,24 @@
             </div>
 
             <div class="lg:col-span-4 space-y-6">
-                 <div id="student-qr-card" class="bg-gradient-to-br from-kmutnb-main to-orange-600 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden group cursor-pointer">
+                <div id="student-qr-card" class="bg-gradient-to-br from-kmutnb-main to-orange-600 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden group">
                     <h3 class="font-bold text-xl relative z-10">Scan QR Code</h3>
                     <p class="text-orange-100 text-sm mt-1 relative z-10 mb-4">เช็คชื่อ / จ่ายเงิน</p>
-                    <button class="bg-white text-kmutnb-main px-4 py-2 rounded-lg text-sm font-bold shadow-sm"><i class="fa-solid fa-qrcode"></i> เปิดกล้อง</button>
+                    
+                    <div class="flex flex-wrap gap-2 relative z-20">
+                        <button id="btn-start-qr" onclick="startScanner()" class="bg-white text-kmutnb-main px-4 py-2 rounded-lg text-sm font-bold shadow-sm hover:bg-orange-50 transition flex items-center gap-2">
+                            <i class="fa-solid fa-camera"></i> เปิดกล้อง
+                        </button>
+                        
+                        <button id="btn-stop-qr" onclick="stopScanner()" class="hidden bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm hover:bg-gray-900 transition flex items-center gap-2">
+                            <i class="fa-solid fa-xmark"></i> ปิดกล้อง
+                        </button>
+                    </div>
+
+                    <div id="qr-reader-wrapper" class="hidden mt-4 rounded-xl overflow-hidden border-2 border-white/30 bg-black shadow-inner relative z-10">
+                        <div id="qr-reader" style="width: 100%;"></div>
+                    </div>
+                    
                     <i class="fa-solid fa-qrcode absolute -bottom-4 -right-4 text-8xl opacity-10"></i>
                 </div>
 
@@ -281,6 +296,81 @@
         }
 
         setupUI();
+
+        let html5QrCode; 
+
+        async function startScanner() {
+            const readerWrapper = document.getElementById('qr-reader-wrapper');
+            const btnStart = document.getElementById('btn-start-qr');
+            const btnStop = document.getElementById('btn-stop-qr');
+
+            readerWrapper.classList.remove('hidden');
+            btnStart.classList.add('hidden');
+            btnStop.classList.remove('hidden');
+
+            html5QrCode = new Html5Qrcode("qr-reader");
+
+            const config = { 
+                fps: 20, 
+                qrbox: { width: 250, height: 250 },
+                aspectRatio: 1.0 
+            };
+
+            try {
+                await html5QrCode.start(
+                    { facingMode: "environment" }, 
+                    config, 
+                    (decodedText) => {
+                        // 1. สั่งหยุดกล้องทันทีเมื่อเจอข้อมูล เพื่อป้องกันการสแกนซ้ำ
+                        stopScanner();
+
+                        // 2. แสดง Popup แจ้งเตือนผู้ใช้
+                        Swal.fire({
+                            title: 'สแกนสำเร็จ!',
+                            html: `
+                                <div class="text-center">
+                                    <p class="mb-3 text-gray-600">ข้อมูลที่พบใน QR Code:</p>
+                                    <div class="p-4 bg-gray-100 rounded-xl break-all font-mono text-sm text-orange-600 border border-orange-100">
+                                        ${decodedText}
+                                    </div>
+                                </div>
+                            `,
+                            icon: 'success',
+                            showCancelButton: true,
+                            confirmButtonColor: '#EE3F0B',
+                            confirmButtonText: decodedText.startsWith('http') ? 'เปิดลิงก์' : 'ตกลง',
+                            cancelButtonText: 'ปิด',
+                            reverseButtons: true
+                        }).then((result) => {
+                            // 3. ถ้าเป็น Link และผู้ใช้กดปุ่มตกลง (เปิดลิงก์)
+                            if (result.isConfirmed && decodedText.startsWith('http')) {
+                                window.open(decodedText, '_blank');
+                            }
+                        });
+                    }
+                );
+            } catch (err) {
+                console.error("Camera Error:", err);
+                Swal.fire('กล้องมีปัญหา', 'กรุณาอนุญาตการเข้าถึงกล้องและตรวจสอบการเชื่อมต่อ HTTPS', 'error');
+                stopScanner();
+            }
+        }
+
+        async function stopScanner() {
+            if (html5QrCode) {
+                try {
+                    if (html5QrCode.isScanning) {
+                        await html5QrCode.stop();
+                    }
+                    html5QrCode.clear();
+                } catch (err) {
+                    console.warn("Stop error:", err);
+                }
+            }
+            document.getElementById('qr-reader-wrapper').classList.add('hidden');
+            document.getElementById('btn-start-qr').classList.remove('hidden');
+            document.getElementById('btn-stop-qr').classList.add('hidden');
+        }
     </script>
 </body>
 </html>
