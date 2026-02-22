@@ -242,18 +242,32 @@
             const welcomeMsg = document.getElementById('welcome-msg');
             const topNavCard = document.getElementById('top-nav-card');
 
-            if (userType === 'student' && userData) {
-                // --- กรณีเป็นนักศึกษา ---
-                profileName.innerText = userData.full_name;
-                profileDept.innerText = userData.department;
-                welcomeMsg.innerText = "สวัสดี, " + userData.full_name.split(' ')[0];
-                profileImg.src = `https://ui-avatars.com/api/?name=${userData.full_name}&background=EE3F0B&color=fff`;
-                
-                document.getElementById('student-qr-card').classList.remove('hidden');
-                if(topNavCard) topNavCard.classList.remove('hidden');
+            // --- ตรวจสอบสิทธิ์และดึงข้อมูล ---
+            if (userData) {
+                if (userType === 'admin') {
+                    // --- กรณีเป็น ADMIN ---
+                    profileName.innerText = "Admin";
+                    profileDept.innerText = "ผู้ดูแลระบบ";
+                    welcomeMsg.innerText = "สวัสดี, ผู้ดูแลระบบ";
+                    profileImg.src = `https://ui-avatars.com/api/?name=Admin&background=EE3F0B&color=fff`; // พื้นหลังสีดำสำหรับ Admin
+                    
+                    // Admin ให้เห็นเมนูของนักศึกษาด้วย (หรือจะซ่อนก็ได้ตามต้องการ)
+                    document.getElementById('student-qr-card').classList.remove('hidden');
+                    if(topNavCard) topNavCard.classList.remove('hidden');
+                } 
+                else if (userType === 'student') {
+                    // --- กรณีเป็นนักศึกษา ---
+                    profileName.innerText = userData.full_name;
+                    profileDept.innerText = userData.department;
+                    welcomeMsg.innerText = "สวัสดี, " + userData.full_name.split(' ')[0];
+                    profileImg.src = `https://ui-avatars.com/api/?name=${userData.full_name}&background=EE3F0B&color=fff`;
+                    
+                    document.getElementById('student-qr-card').classList.remove('hidden');
+                    if(topNavCard) topNavCard.classList.remove('hidden');
+                }
             } 
             else {
-                // --- กรณีเป็น Guest ---
+                // --- กรณีเป็น Guest หรือไม่มีข้อมูล ---
                 profileName.innerText = "ผู้เยี่ยมชม";
                 profileDept.innerText = "Guest User";
                 profileImg.src = "https://ui-avatars.com/api/?name=Guest&background=gray&color=fff";
