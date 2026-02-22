@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Red Zone Alert - Map</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;800&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        body, html { height: 100%; margin: 0; font-family: 'Sarabun', sans-serif; overflow: hidden; background-color: #f0f2f5; }
+        #map { height: 100%; width: 100%; z-index: 1; }
+
+        /* --- UI Styles --- */
+        .level-selector { display: flex; gap: 8px; margin-bottom: 10px; }
+        .level-btn { flex: 1; padding: 10px; border: 2px solid #eee; border-radius: 8px; background: white; cursor: pointer; font-size: 14px; font-weight: bold; transition: all 0.2s; opacity: 0.6; }
+        .level-btn:hover { opacity: 0.8; transform: translateY(-2px); }
+        .level-btn.active { opacity: 1; border-color: #333; box-shadow: 0 4px 8px rgba(0,0,0,0.2); transform: scale(1.05); }
+        
+        .lvl-low { border-color: #FBC02D; color: #FBC02D; } .lvl-low.active { background: #FBC02D; color: white; }
+        .lvl-med { border-color: #FF9800; color: #FF9800; } .lvl-med.active { background: #FF9800; color: white; }
+        .lvl-high { border-color: #d32f2f; color: #d32f2f; } .lvl-high.active { background: #d32f2f; color: white; }
+
+        .zone-timer-label { background: rgba(0, 0, 0, 0.7); color: #fff; border-radius: 4px; font-size: 12px; font-weight: bold; text-align: center; padding: 2px 5px; border: 1px solid #fff; white-space: nowrap; }
+
+        /* Control Panel */
+        #control-panel { 
+            position: absolute; top: 20px; left: 20px; width: 280px; 
+            background: white; padding: 0; border-radius: 12px; 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15); z-index: 2000; 
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            overflow: hidden;
+            max-height: 500px;
+        }
+        
+        #panel-toggle-btn {
+            position: absolute; top: 10px; right: 10px;
+            background: none; border: none; font-size: 20px; cursor: pointer;
+            color: #555; z-index: 2001; padding: 5px; line-height: 1;
+        }
+
+        #panel-content { padding: 20px; opacity: 1; transition: opacity 0.2s ease; }
+        .panel-collapsed { width: 45px !important; height: 45px !important; border-radius: 50% !important; background: rgba(255,255,255,0.95) !important; max-height: 45px !important; }
+        .panel-collapsed #panel-content { opacity: 0; pointer-events: none; display: none; }
+        .panel-collapsed #panel-toggle-btn { top: 8px; right: 9px; }
+
+        #user-info-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #eee; margin-top: 20px;}
+        .user-name-display { font-weight: bold; color: #333; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 170px; }
+        .logout-btn { background: #d32f2f; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+
+        #gps-status { font-size: 11px; margin-top: 5px; color: #666; display: flex; align-items: center; gap: 5px; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #ccc; display: inline-block; }
+        .status-active { background: #4CAF50; box-shadow: 0 0 5px #4CAF50; }
+        .status-error { background: #d32f2f; }
+
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 5000; justify-content: center; align-items: center; backdrop-filter: blur(2px); }
+        .modal-content { background: white; padding: 25px; border-radius: 16px; width: 90%; max-width: 380px; box-shadow: 0 10px 30px rgba(0,0,0,0.4); animation: popIn 0.3s ease; }
+        @keyframes popIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        .btn-delete-marker { background: #d32f2f; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; width: 100%; font-weight: bold; margin-top: 5px; }
+        
+        #toast { display: none; position: absolute; top: 80px; left: 50%; transform: translateX(-50%); background-color: rgba(30,30,30,0.9); color: white; padding: 12px 24px; border-radius: 50px; z-index: 6000; font-size: 14px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        
+        #danger-alert { display: none; position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); background: linear-gradient(45deg, #d32f2f, #f44336); color: white; padding: 12px 30px; border-radius: 50px; font-size: 18px; font-weight: bold; z-index: 1500; animation: pulse 1.5s infinite; box-shadow: 0 5px 15px rgba(211, 47, 47, 0.4); white-space: nowrap; }
+        @keyframes pulse { 0% { transform: translateX(-50%) scale(1); } 50% { transform: translateX(-50%) scale(1.05); } 100% { transform: translateX(-50%) scale(1); } }
+        
+        .leaflet-routing-container { display: none !important; }
+        .leaflet-control-geocoder { box-shadow: none !important; border: 1px solid #eee; }
+
+        .gps-center-btn { position: absolute; bottom: 90px; right: 10px; z-index: 1000; background: white; border: none; padding: 10px; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.2); cursor: pointer; width: 45px; height: 45px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+    </style>
+</head>
+<body>
+
+    <div id="control-panel">
+        <button id="panel-toggle-btn" onclick="toggleControlPanel()">☰</button>
+        <div id="panel-content">
+            <div id="user-info-bar">
+                <span class="user-name-display">👤 <span id="display-email">Loading...</span></span>
+                <button class="logout-btn" onclick="handleLogout()">Logout</button>
+            </div>
+
+            <div id="gps-status"><span class="status-dot" id="gps-dot"></span> <span id="gps-text">รอสัญญาณ GPS...</span></div>
+
+            <div id="quota-box" style="background:#f9f9f9; padding:15px; border-radius:8px; border-left:5px solid #4CAF50; margin-bottom: 15px; margin-top: 10px; transition: border-color 0.3s;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-weight:bold; color:#555;">สิทธิ์แจ้งเหตุ:</span>
+                    <span id="quota-count" style="font-size:18px; font-weight:bold; color:#4CAF50;">--/--</span>
+                </div>
+                <div id="quota-timer-msg" style="font-size:11px; color:#aaa; margin-top:5px; font-weight:bold;">* กำลังโหลด...</div>
+            </div>
+            <button onclick="clearRoute()" style="width:100%; padding:10px; cursor:pointer; background:white; border:1px solid #ddd; border-radius:6px; color:#555;">❌ ยกเลิกการนำทาง</button>
+        </div>
+    </div>
+
+    <div id="map"></div>
+    <button class="gps-center-btn" onclick="centerOnUser()">🎯</button>
+    <div id="danger-alert">⚠️ ระวัง! เข้าสู่เขตอันตราย</div>
+
+    <div id="report-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h2 style="margin-top:0; color:#333;">🚨 แจ้งเหตุอันตราย</h2>
+            <p style="margin:0 0 5px 0; font-size:14px; font-weight:bold; color:#555;">เลือกระดับความรุนแรง:</p>
+            <div class="level-selector">
+                <button class="level-btn lvl-low" onclick="selectLevel('low')">🟡 เฝ้าระวัง</button>
+                <button class="level-btn lvl-med active" onclick="selectLevel('medium')">🟠 ปานกลาง</button>
+                <button class="level-btn lvl-high" onclick="selectLevel('high')">🔴 วิกฤต</button>
+            </div>
+            <textarea id="incident-desc" style="width:100%; height:80px; padding:10px; border:1px solid #ccc; border-radius:8px; resize:none; margin-bottom:10px; box-sizing: border-box;" placeholder="ระบุรายละเอียดเหตุการณ์..."></textarea>
+            <button onclick="confirmReport()" style="background:#333; color:white; width:100%; padding:12px; border:none; border-radius:8px; cursor:pointer; font-weight:bold; margin-bottom:8px;">ยืนยันการแจ้งเหตุ</button>
+            <button onclick="closeModal('report-modal')" style="background:#f0f0f0; width:100%; padding:12px; border:none; border-radius:8px; cursor:pointer;">ยกเลิก</button>
+        </div>
+    </div>
+
+    <div id="warning-modal" class="modal-overlay">
+        <div class="modal-content" style="border-top: 5px solid #d32f2f;">
+            <h2 style="color:#d32f2f; margin-top:0;">⚠️ เตือนภัย!</h2>
+            <p id="warning-msg" style="color:#333; margin-bottom:20px;">เส้นทางนี้ผ่านเขตอันตราย</p>
+            <button onclick="closeModal('warning-modal')" style="background:#ff9800; color:white; width:100%; padding:12px; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">ไปต่อ (รับความเสี่ยง)</button>
+            <button onclick="cancelNavigationAndClose()" style="background:#d32f2f; color:white; width:100%; padding:12px; border:none; border-radius:8px; cursor:pointer; margin-top:5px;">❌ ยกเลิกการเดินทาง</button>
+        </div>
+    </div>
+
+    <div id="toast"></div>
+
+    <div id="context-menu" style="display:none; position:absolute; z-index:3000; background:white; border-radius:8px; box-shadow:0 4px 15px rgba(0,0,0,0.2); overflow:hidden; min-width:160px;">
+        <button onclick="startNavigation()" style="display:block; width:100%; padding:12px 15px; border:none; background:white; text-align:left; cursor:pointer; border-bottom:1px solid #eee;">🚶‍♂️ เดินเท้าไปที่นี่</button>
+        <button onclick="hideContextMenu()" style="display:block; width:100%; padding:12px 15px; border:none; background:white; text-align:left; cursor:pointer; color:#888;">ยกเลิก</button>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
+    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+
+    <script>
+        // --- 1. SETUP & CONFIG ---
+        // (ใช้ Config เดิมจากโค้ดแผนที่ สำหรับเชื่อมต่อฐานข้อมูลดึงหมุด Red zone)
+        const PROJECT_URL = 'https://yowjvmiosrclqstoeqat.supabase.co';
+        const ANON_KEY = 'sb_publishable_3OX-g4Dm1p4ZwwHV_fr3nA_wtq0RkmS';
+        
+        const db = window.supabase.createClient(PROJECT_URL, ANON_KEY);
+
+        let currentUser = null;
+        let map, userRangeCircle, routingControl = null;
+        let activeUserMarker = null;
+        let redZones = []; 
+        let tempClickLocation = null, contextMenuLocation = null;
+        let reportTimestamps = []; 
+        let currentSelectedLevel = 'medium';
+        let watchId = null;
+
+        const MAX_REPORTS = 2; 
+        const COOLDOWN_TIME = 10 * 60 * 1000; // 10 minutes
+        const ZONE_LIFETIME = 60 * 60 * 1000; // 1 hour
+
+        const DANGER_LEVELS = {
+            low: { radius: 250, color: '#FBC02D', label: '🟡 เฝ้าระวัง' },
+            medium: { radius: 500, color: '#FF9800', label: '🟠 ปานกลาง' },
+            high: { radius: 1000, color: '#d32f2f', label: '🔴 วิกฤต' }
+        };
+
+        // --- 2. AUTHENTICATION (แก้ไขใหม่เชื่อมกับ sessionStorage) ---
+        // --- 2. AUTHENTICATION (แก้ไขใหม่เชื่อมกับ sessionStorage) ---
+        function checkSession() {
+            // ตรวจสอบสถานะการล็อกอินจาก sessionStorage
+            const isLoggedIn = sessionStorage.getItem('isLoggedIn');
+            
+            // ถ้าไม่ได้ล็อกอิน ให้เด้งไปหน้า login.html
+            if (!isLoggedIn) {
+                window.location.href = 'login.html'; 
+                return;
+            }
+
+            const userType = sessionStorage.getItem('userType');
+            
+            if (userType === 'guest') {
+                // กรณีล็อกอินแบบ Guest
+                currentUser = { 
+                    id: 'guest_' + Date.now(), 
+                    email: 'Guest User',
+                    username: 'Guest',
+                    full_name: 'บุคคลทั่วไป (Guest)'
+                };
+                document.getElementById('display-email').innerText = currentUser.full_name;
+            } else {
+                // กรณีล็อกอินแบบนักศึกษา/บุคลากร ดึงข้อมูลจาก userData
+                const userDataStr = sessionStorage.getItem('userData');
+                if (userDataStr) {
+                    const data = JSON.parse(userDataStr);
+                    currentUser = {
+                        id: data.id || data.username,
+                        email: data.username, 
+                        full_name: data.full_name, // ดึง full_name มาเก็บไว้ใน currentUser
+                        ...data
+                    };
+                    
+                    // --- จุดที่แก้ไข: เปลี่ยนให้แสดงชื่อ-นามสกุล (full_name) แทนรหัสนักศึกษา ---
+                    // หากไม่มี full_name ให้แสดง username สำรองไว้กันพัง
+                    document.getElementById('display-email').innerText = currentUser.full_name || currentUser.username;
+                    
+                } else {
+                    window.location.href = 'login.html';
+                    return;
+                }
+            }
+
+            // เมื่อยืนยันตัวตนสำเร็จ โหลดระบบต่างๆ
+            loadQuotaFromStorage();
+            initMap();
+            fetchZonesFromDB();
+            
+            setInterval(fetchZonesFromDB, 3000); 
+            setInterval(updateTimers, 1000); 
+        }
+
+        function handleLogout() {
+            // เคลียร์ค่า Session ออกให้หมดแล้วเด้งกลับหน้า Login
+            sessionStorage.clear();
+            window.location.href = 'login.html';
+        }
+
+        // --- 3. QUOTA LOGIC ---
+        function loadQuotaFromStorage() {
+            if(!currentUser) return;
+            const key = `quota_${currentUser.id}`;
+            const savedData = localStorage.getItem(key);
+            if (savedData) {
+                try {
+                    const parsed = JSON.parse(savedData);
+                    const now = Date.now();
+                    reportTimestamps = parsed.filter(t => now - t < COOLDOWN_TIME);
+                } catch (e) { reportTimestamps = []; }
+            }
+            saveQuotaToStorage();
+        }
+
+        function saveQuotaToStorage() {
+            if(!currentUser) return;
+            const key = `quota_${currentUser.id}`;
+            localStorage.setItem(key, JSON.stringify(reportTimestamps));
+        }
+
+        // --- 4. MAP & GPS ---
+        function initMap() {
+            var startPos = [13.746, 100.534]; 
+            map = L.map('map', { center: startPos, zoom: 15, zoomControl: false });
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
+            L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+            L.Control.geocoder({ defaultMarkGeocode: false, placeholder: "🔍 ค้นหา..." })
+            .on('markgeocode', function(e) { map.fitBounds(e.geocode.bbox); }).addTo(map);
+
+            userRangeCircle = L.circle(startPos, { color: 'blue', weight: 1, fillOpacity: 0.0, radius: 500 }).addTo(map);
+            activeUserMarker = L.marker(startPos, { 
+                icon: L.icon({iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34]}), 
+                zIndexOffset: 1000 
+            }).addTo(map);
+            activeUserMarker.bindPopup(`<b>คุณอยู่ที่นี่</b>`);
+            
+            startRealtimeGPS();
+
+            map.on('click', function(e) { hideContextMenu(); handleMapClick(e.latlng); });
+            map.on('contextmenu', function(e) { e.originalEvent.preventDefault(); showContextMenu(e.originalEvent.pageX, e.originalEvent.pageY, e.latlng); });
+        }
+
+        function startRealtimeGPS() {
+            if (!navigator.geolocation) { updateGPSStatus('error', 'Browser ไม่รองรับ GPS'); return; }
+
+            const options = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
+            watchId = navigator.geolocation.watchPosition(
+                (position) => {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    const newLatLng = new L.LatLng(lat, lng);
+
+                    activeUserMarker.setLatLng(newLatLng);
+                    userRangeCircle.setLatLng(newLatLng);
+
+                    if(routingControl) { 
+                        var wps = routingControl.getWaypoints(); 
+                        if(wps.length && wps[0].latLng) {
+                            wps[0].latLng = newLatLng; 
+                            routingControl.setWaypoints(wps);
+                        } 
+                    }
+
+                    checkSafety();
+                    updateGPSStatus('active', 'GPS ทำงานปกติ');
+
+                    if (!window.hasCenteredMap) {
+                        map.setView(newLatLng, 15);
+                        window.hasCenteredMap = true;
+                    }
+                },
+                (error) => {
+                    console.error("GPS Error:", error);
+                    updateGPSStatus('error', 'กรุณาเปิด Location');
+                    showToast("⚠️ GPS ขัดข้อง", "error");
+                },
+                options
+            );
+        }
+
+        function centerOnUser() {
+            if (activeUserMarker) map.setView(activeUserMarker.getLatLng(), 16);
+        }
+
+        function updateGPSStatus(status, text) {
+            const dot = document.getElementById('gps-dot');
+            const txt = document.getElementById('gps-text');
+            txt.innerText = text;
+            dot.className = status === 'active' ? 'status-dot status-active' : 'status-dot status-error';
+        }
+
+        // --- 5. DATABASE & ZONES ---
+        async function fetchZonesFromDB() {
+            const oneHourAgo = new Date(Date.now() - ZONE_LIFETIME).toISOString();
+            
+            const { data, error } = await db
+                .from('red_zones')
+                .select('*')
+                .gt('created_at', oneHourAgo) 
+                .order('created_at', { ascending: false });
+
+            if (error) { console.error('Fetch error:', error); return; }
+
+            for (let i = redZones.length - 1; i >= 0; i--) {
+                const z = redZones[i];
+                if (z.id.toString().startsWith('temp_')) continue; 
+                
+                const stillExists = data.find(d => d.id === z.id);
+                if (!stillExists) {
+                    removeZoneFromMap(i);
+                }
+            }
+
+            data.forEach(dbZone => {
+                if (!redZones.find(z => z.id === dbZone.id)) {
+                    renderZoneOnMap(dbZone);
+                }
+            });
+
+            checkSafety();
+            updateTimers();
+        }
+
+        function renderZoneOnMap(zoneData) {
+            const latlng = [zoneData.latitude, zoneData.longitude];
+            const config = DANGER_LEVELS[zoneData.level] || DANGER_LEVELS.medium;
+            
+            var circle = L.circle(latlng, { color: config.color, fillColor: config.color, fillOpacity: 0.2, radius: config.radius }).addTo(map);
+            
+            var timerMarker = L.marker(latlng, {
+                icon: L.divIcon({ className: 'zone-timer-label', html: 'Wait...', iconSize: [50, 20], iconAnchor: [25, 0] }), 
+                interactive: false
+            }).addTo(map);
+            timerMarker.on('add', function() { this.getElement().style.borderColor = config.color; });
+
+            const isMine = (currentUser && zoneData.user_id === currentUser.id);
+            let btn = isMine ? `<button class="btn-delete-marker" onclick="deleteRedZone('${zoneData.id}')">ลบหมุด</button>` : `<small style="color:#666">โดย: ${zoneData.email}</small>`;
+
+            var marker = L.marker(latlng, {
+                icon: L.icon({iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png', iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34]})
+            }).addTo(map)
+            .bindPopup(`<div style="text-align:center; min-width: 170px;">
+                <h3 style="margin:0; color:${config.color};">${config.label}</h3>
+                <p style="margin:5px 0; font-size:14px;">${zoneData.description}</p>
+                ${btn}
+            </div>`);
+
+            const createdTime = new Date(zoneData.created_at).getTime();
+
+            redZones.push({ id: zoneData.id, circle: circle, marker: marker, timerMarker: timerMarker, createdAt: createdTime });
+        }
+
+        function removeZoneFromMap(index) {
+            let z = redZones[index];
+            if(map.hasLayer(z.circle)) map.removeLayer(z.circle);
+            if(map.hasLayer(z.marker)) map.removeLayer(z.marker);
+            if(map.hasLayer(z.timerMarker)) map.removeLayer(z.timerMarker);
+            redZones.splice(index, 1);
+        }
+
+        // --- 6. ACTIONS ---
+        async function confirmReport() {
+            var desc = document.getElementById('incident-desc').value;
+            if (!desc.trim()) { showToast("โปรดระบุรายละเอียด", "error"); return; }
+            if (reportTimestamps.length >= MAX_REPORTS) { showToast("⏳ สิทธิ์เต็ม", "error"); return; }
+
+            const tempZone = {
+                id: "temp_" + Date.now(), 
+                latitude: tempClickLocation.lat, 
+                longitude: tempClickLocation.lng, 
+                description: desc, 
+                level: currentSelectedLevel, 
+                email: currentUser.email,
+                user_id: currentUser.id,
+                created_at: new Date().toISOString()
+            };
+
+            renderZoneOnMap(tempZone); 
+            closeModal('report-modal');
+            showToast("✅ แจ้งเหตุสำเร็จ!", "success");
+            
+            reportTimestamps.push(Date.now()); 
+            saveQuotaToStorage();
+            updateTimers();
+
+            const { error } = await db.from('red_zones').insert([{ 
+                latitude: tempClickLocation.lat, 
+                longitude: tempClickLocation.lng, 
+                description: desc, 
+                level: currentSelectedLevel, 
+                email: currentUser.email,
+                user_id: currentUser.id
+            }]);
+
+            if (error) { 
+                showToast("Error: " + error.message, "error");
+            }
+        }
+
+        async function deleteRedZone(dbId) {
+            if(dbId.toString().startsWith('temp_')) {
+                let idx = redZones.findIndex(z => z.id === dbId);
+                if(idx !== -1) removeZoneFromMap(idx);
+                showToast("🗑️ ลบหมุดแล้ว", "success");
+                return;
+            }
+            if(!confirm("ยืนยันการลบ?")) return;
+            const { error } = await db.from('red_zones').delete().eq('id', dbId);
+            if (error) { showToast("ลบไม่ได้", "error"); }
+            else { 
+                showToast("🗑️ ลบหมุดสำเร็จ", "success"); 
+                let idx = redZones.findIndex(z => z.id === dbId);
+                if(idx !== -1) removeZoneFromMap(idx);
+            }
+        }
+
+        // --- 7. TIMERS & UI ---
+        function updateTimers() {
+            const now = Date.now();
+            
+            for (let i = 0; i < redZones.length; i++) {
+                let diff = now - redZones[i].createdAt; 
+                let timeLeft = ZONE_LIFETIME - diff;
+                
+                if (timeLeft < 0) timeLeft = 0; 
+                
+                let m = Math.floor(timeLeft / 60000);
+                let s = Math.floor((timeLeft % 60000) / 1000);
+                let text = (timeLeft <= 0) ? "หมดเวลา" : `${m}:${s < 10 ? '0'+s : s}`;
+                
+                if(redZones[i].timerMarker && redZones[i].timerMarker.getElement()) {
+                    redZones[i].timerMarker.getElement().innerHTML = text;
+                }
+            }
+
+            const initialLen = reportTimestamps.length;
+            reportTimestamps = reportTimestamps.filter(t => now - t < COOLDOWN_TIME);
+            if(reportTimestamps.length !== initialLen) saveQuotaToStorage();
+
+            updateQuotaUI(now);
+        }
+
+        function updateQuotaUI(now) {
+            const el = document.getElementById('quota-count');
+            const timerMsgEl = document.getElementById('quota-timer-msg');
+            const quotaBox = document.getElementById('quota-box');
+            
+            let remaining = MAX_REPORTS - reportTimestamps.length;
+            if(el) {
+                el.innerText = `${remaining}/${MAX_REPORTS}`;
+                el.style.color = remaining > 0 ? '#4CAF50' : '#d32f2f';
+            }
+
+            if (reportTimestamps.length > 0) {
+                const oldest = Math.min(...reportTimestamps);
+                const waitTime = (oldest + COOLDOWN_TIME) - now;
+
+                if (waitTime > 0) {
+                    const mm = Math.floor(waitTime / 60000);
+                    const ss = Math.floor((waitTime % 60000) / 1000);
+                    timerMsgEl.innerHTML = `⏳ คืนสิทธิ์ใน: <span style="color:#d32f2f;">${mm}:${ss < 10 ? '0'+ss : ss}</span>`;
+                    quotaBox.style.borderLeftColor = '#FF9800'; 
+                }
+            } else {
+                timerMsgEl.innerHTML = `✅ พร้อมใช้งาน`;
+                timerMsgEl.style.color = '#4CAF50';
+                quotaBox.style.borderLeftColor = '#4CAF50'; 
+            }
+        }
+
+        // --- 8. UTILS ---
+        function handleMapClick(latlng) {
+            if(!activeUserMarker) return;
+            if (activeUserMarker.getLatLng().distanceTo(latlng) > 1000) { showToast("⛔ ไกลเกินระยะ (1km)", "error"); return; }
+            if (reportTimestamps.length >= MAX_REPORTS) { showToast("⏳ สิทธิ์เต็ม", "error"); return; }
+            
+            tempClickLocation = latlng; 
+            document.getElementById('incident-desc').value=""; 
+            selectLevel('medium');
+            document.getElementById('report-modal').style.display = 'flex';
+        }
+
+        function checkSafety() {
+            if(!activeUserMarker) return;
+            let danger = redZones.some(z => activeUserMarker.getLatLng().distanceTo(z.circle.getLatLng()) < z.circle.getRadius());
+            let alertBox = document.getElementById('danger-alert');
+            alertBox.style.display = danger ? 'block' : 'none';
+            userRangeCircle.setStyle({ color: danger?'red':'blue', fillColor: danger?'#f00':'blue', fillOpacity: danger?0.1:0 });
+        }
+
+        function toggleControlPanel() {
+            const panel = document.getElementById('control-panel');
+            const btn = document.getElementById('panel-toggle-btn');
+            panel.classList.toggle('panel-collapsed');
+            btn.innerHTML = panel.classList.contains('panel-collapsed') ? '☰' : '✖';
+        }
+
+        function selectLevel(l) { 
+            currentSelectedLevel = l; 
+            document.querySelectorAll('.level-btn').forEach(b => b.classList.remove('active')); 
+            document.querySelector(`.lvl-${l==='medium'?'med':l}`).classList.add('active'); 
+        }
+
+        function closeModal(id) { document.getElementById(id).style.display='none'; }
+        
+        function showToast(msg, type) { 
+            var t=document.getElementById('toast'); 
+            t.innerHTML=msg; 
+            t.style.background=type==='error'?'#d32f2f':type==='success'?'#388E3C':'#333'; 
+            t.style.display='block'; 
+            clearTimeout(t.tid); 
+            t.tid=setTimeout(()=>t.style.display='none',3000); 
+        }
+
+        // --- 9. ROUTING ---
+        function startNavigation() {
+            hideContextMenu(); 
+            if(routingControl) { map.removeControl(routingControl); routingControl=null; }
+            let destDanger = redZones.some(z => L.latLng(contextMenuLocation).distanceTo(z.circle.getLatLng()) < z.circle.getRadius());
+            if(destDanger) { 
+                document.getElementById('warning-msg').innerHTML = "🛑 ปลายทางอยู่ในเขตอันตราย!"; 
+                document.getElementById('warning-modal').style.display = 'flex'; 
+            } else { executeRouting(); }
+        }
+
+        function executeRouting() {
+            closeModal('warning-modal');
+            showToast("🚶‍♂️ กำลังคำนวณเส้นทาง...", "success");
+            routingControl = L.Routing.control({ 
+                waypoints: [activeUserMarker.getLatLng(), contextMenuLocation], 
+                router: L.Routing.osrmv1({ serviceUrl: 'https://router.project-osrm.org/route/v1', profile: 'foot' }), 
+                createMarker: ()=>null, lineOptions: { styles: [{color: 'blue', opacity: 0.6, weight: 4}] },
+                addWaypoints: false, fitSelectedRoutes: true, show: false 
+            }).addTo(map);
+        }
+
+        function showContextMenu(x,y,latlng) { 
+            contextMenuLocation=latlng; 
+            var m=document.getElementById('context-menu'); 
+            m.style.left=(x>window.innerWidth-170?x-170:x)+'px'; 
+            m.style.top=(y>window.innerHeight-110?y-110:y)+'px'; 
+            m.style.display='block'; 
+        }
+        function hideContextMenu() { document.getElementById('context-menu').style.display='none'; }
+        function clearRoute() { if(routingControl){map.removeControl(routingControl); routingControl=null;} showToast("ยกเลิกเส้นทาง", "normal"); }
+        function cancelNavigationAndClose() { clearRoute(); closeModal('warning-modal'); }
+
+        // Start Application
+        checkSession();
+    </script>
+</body>
+</html>
