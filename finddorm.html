@@ -29,89 +29,105 @@
         body { font-family: 'Prompt', sans-serif; }
         #map { height: calc(100vh - 64px); width: 100%; z-index: 0; }
         
-        /* Custom Marker Style */
         .custom-pin {
             background-color: white;
             border-radius: 50%;
             border: 2px solid #EE3F0B;
             text-align: center;
-            color: #EE3F0B;
             font-size: 16px;
             padding-top: 4px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            transition: transform 0.2s;
+            transition: all 0.2s;
         }
         .custom-pin:hover {
-            transform: scale(1.1);
-            background-color: #EE3F0B;
-            color: white;
-            border-color: white;
-        }
-        
-        /* สไตล์สำหรับหอใน (สีส้มเข้ม/แดง) */
-        .pin-internal { border-color: #EE3F0B; color: #EE3F0B; }
-        
-        /* สไตล์สำหรับหอนอก (สีน้ำเงิน) */
-        .pin-external { border-color: #2563EB; color: #2563EB; }
-        .pin-external:hover { background-color: #2563EB; color: white; }
-
-        /* บังคับลิงก์ใน Popup */
-        .leaflet-popup-content a {
-            text-decoration: none !important;
+            transform: scale(1.15);
             color: white !important;
+            border-color: white;
+            z-index: 999;
         }
-        /* ปรับแต่ง Popup ให้กว้างขึ้นเล็กน้อย */
-        .leaflet-popup-content-wrapper {
-            border-radius: 12px;
-        }
+        
+        .pin-internal { border-color: #EE3F0B; color: #EE3F0B; }
+        .pin-internal:hover { background-color: #EE3F0B; }
+        
+        .pin-external { border-color: #2563EB; color: #2563EB; }
+        .pin-external:hover { background-color: #2563EB; }
+
+        .custom-pin i { transition: color 0.2s; }
+        .custom-pin:hover i { color: white !important; }
+
+        .leaflet-popup-content-wrapper { border-radius: 12px; }
+        
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
 <body class="bg-gray-100 h-screen overflow-hidden flex flex-col">
 
-    <header class="bg-white shadow-md z-20 h-16 flex items-center justify-between px-4">
-        <div class="flex items-center gap-3">
-            <a href="index.html" class="w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 transition">
-                <i class="fa-solid fa-arrow-left"></i>
-            </a>
-            <div>
-                <h1 class="text-lg font-bold text-gray-800 leading-none">ค้นหาหอพัก</h1>
-                <span id="user-status-text" class="text-xs text-gray-500">กำลังโหลด...</span>
+    <header class="bg-white shadow-md z-20 flex flex-col shrink-0">
+        <div class="h-16 flex items-center justify-between px-4 border-b border-gray-100">
+            <div class="flex items-center gap-3">
+                <a href="index.html" class="w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 transition">
+                    <i class="fa-solid fa-arrow-left"></i>
+                </a>
+                <div>
+                    <h1 class="text-lg font-bold text-gray-800 leading-none">ค้นหาหอพัก</h1>
+                    <span id="user-status-text" class="text-xs text-gray-500">กำลังโหลด...</span>
+                </div>
+            </div>
+
+            <button onclick="handleTopRightButton()" id="action-btn" class="bg-kmutnb-main hover:bg-orange-700 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg transition flex items-center gap-2">
+                <i class="fa-solid fa-building"></i>
+                <span id="action-btn-text" class="hidden sm:inline">จัดการระบบ</span>
+            </button>
+        </div>
+    </header>
+
+    <div class="relative flex-1">
+        <div class="absolute top-4 left-1/2 -translate-x-1/2 w-[95%] sm:w-[450px] z-[500] flex flex-col gap-2 pointer-events-none">
+            
+            <div class="bg-white p-2 rounded-xl shadow-lg pointer-events-auto flex items-center gap-2 w-full">
+                <i class="fa-solid fa-magnifying-glass text-gray-400 ml-2"></i>
+                <input type="text" id="search-input" onkeyup="applyFilters()" 
+                       class="w-full bg-transparent outline-none text-sm text-gray-700 placeholder-gray-400" 
+                       placeholder="ค้นหาชื่อหอพัก...">
+            </div>
+
+            <div class="flex gap-2 overflow-x-auto scrollbar-hide pointer-events-auto pb-1 sm:flex-wrap justify-center w-full" id="filter-container">
+                <button onclick="setFilter('all')" id="btn-all" class="filter-btn bg-gray-800 text-white px-4 py-1.5 rounded-full text-xs font-medium shadow whitespace-nowrap border border-transparent transition cursor-pointer">ทั้งหมด</button>
+                <button onclick="setFilter('internal')" id="btn-internal" class="filter-btn bg-white text-gray-600 px-4 py-1.5 rounded-full text-xs font-medium shadow whitespace-nowrap border border-gray-200 hover:bg-orange-50 hover:text-orange-500 transition cursor-pointer"><i class="fa-solid fa-school"></i> หอพักใน</button>
+                <button onclick="setFilter('external')" id="btn-external" class="filter-btn bg-white text-gray-600 px-4 py-1.5 rounded-full text-xs font-medium shadow whitespace-nowrap border border-gray-200 hover:bg-blue-50 hover:text-blue-500 transition cursor-pointer"><i class="fa-solid fa-building"></i> หอพักนอก</button>
             </div>
         </div>
 
-        <button onclick="handleTopRightButton()" id="action-btn" class="bg-kmutnb-main hover:bg-orange-700 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg transition flex items-center gap-2">
-            <i class="fa-regular fa-comment-dots"></i>
-            <span id="action-btn-text">แนะนำหอ</span>
-        </button>
-    </header>
-
-    <div id="map" class="relative"></div>
+        <div id="map" class="h-full w-full"></div>
+    </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <script>
-        // --------------------------------------------------------
         // Config Supabase
-        // --------------------------------------------------------
         const SUPABASE_URL = 'https://hcjquegorteantfzckpf.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_3bK3c4hh7hu37K0XxCzXVA_-5rJH89L'; 
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // --------------------------------------------------------
-        // 1. User & Session Management 
-        // --------------------------------------------------------
+        // Data & State
         let userData = JSON.parse(sessionStorage.getItem('userData')) || {};
         let userType = sessionStorage.getItem('userType') || 'guest';
-        
         if(userData.role === 'admin') userType = 'admin';
 
+        let map;
+        let markers = [];
+        let allDormsData = [];
+        let currentFilter = 'all';
+
+        // Initialization
         function updateUI() {
             const statusText = document.getElementById('user-status-text');
             const btnText = document.getElementById('action-btn-text');
             const btnIcon = document.querySelector('#action-btn i');
 
             if (userType === 'admin') {
-                statusText.innerText = 'โหมดผู้ดูแล: แตะแผนที่เพื่อเพิ่ม / แตะหมุดเพื่อแก้ไข';
+                statusText.innerText = 'Admin Mode: แตะแผนที่เพื่อเพิ่ม / แตะหมุดเพื่อแก้ไข';
                 statusText.className = 'text-xs text-red-600 font-bold';
                 btnText.innerText = 'จัดการระบบ';
                 btnIcon.className = 'fa-solid fa-map-pin';
@@ -123,25 +139,19 @@
             }
         }
 
-        // --------------------------------------------------------
-        // 2. Map Initialization
-        // --------------------------------------------------------
-        const KMUTNB_LAT = 13.819077;
-        const KMUTNB_LNG = 100.514332;
-        let map;
-        let markers = [];
-        let allDormsData = []; // เก็บข้อมูลหอพักทั้งหมดไว้เพื่อใช้ตอน Edit
-
         function initMap() {
-            map = L.map('map').setView([KMUTNB_LAT, KMUTNB_LNG], 16);
+            const KMUTNB_LAT = 13.819077;
+            const KMUTNB_LNG = 100.514332;
+            
+            map = L.map('map', { zoomControl: false }).setView([KMUTNB_LAT, KMUTNB_LNG], 16);
+            L.control.zoom({ position: 'bottomright' }).addTo(map);
 
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap contributors'
+                attribution: '© OpenStreetMap'
             }).addTo(map);
 
             fetchDorms();
 
-            // Admin: Click map to ADD pin
             map.on('click', function(e) {
                 if (userType === 'admin') {
                     openAddPinModal(e.latlng.lat, e.latlng.lng);
@@ -149,105 +159,83 @@
             });
         }
 
-        // --------------------------------------------------------
-        // 3. Supabase Operations
-        // --------------------------------------------------------
+        // Logic: Filtering & Searching
+        function setFilter(type) {
+            currentFilter = type;
+            
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.className = "filter-btn bg-white text-gray-600 px-4 py-1.5 rounded-full text-xs font-medium shadow whitespace-nowrap border border-gray-200 hover:bg-gray-50 transition cursor-pointer";
+            });
+            
+            const activeBtn = document.getElementById(`btn-${type}`);
+            if(activeBtn) {
+                activeBtn.className = "filter-btn bg-gray-800 text-white px-4 py-1.5 rounded-full text-xs font-medium shadow whitespace-nowrap border border-transparent transition cursor-pointer";
+            }
 
-        // READ: ดึงข้อมูล
+            applyFilters();
+        }
+
+        function applyFilters() {
+            const searchText = document.getElementById('search-input').value.toLowerCase();
+            
+            const filteredData = allDormsData.filter(item => {
+                const matchCategory = (currentFilter === 'all') || (item.type === currentFilter);
+                
+                const name = (item.name || '').toLowerCase();
+                const details = (item.details || '').toLowerCase();
+                const matchSearch = name.includes(searchText) || details.includes(searchText);
+
+                return matchCategory && matchSearch;
+            });
+
+            renderPins(filteredData);
+        }
+
+        // CRUD Operations
         async function fetchDorms() {
             try {
-                const { data, error } = await supabaseClient
-                    .from('dormitories') 
-                    .select('*')
-                    .order('id', { ascending: true }); // เรียงตาม ID
-
+                const { data, error } = await supabaseClient.from('dormitories').select('*').order('id', { ascending: true });
                 if (error) throw error;
-                
-                allDormsData = data; // บันทึกข้อมูลลงตัวแปร Global
-                renderPins(data);
-
-            } catch (err) {
-                console.error('Error fetching dorms:', err);
-            }
+                allDormsData = data; 
+                applyFilters();
+            } catch (err) { console.error('Error fetching dorms:', err); }
         }
 
-        // CREATE: เพิ่มข้อมูล
         async function addDormToSupabase(name, type, details, lat, lng) {
             try {
-                const { error } = await supabaseClient
-                    .from('dormitories')
-                    .insert([{ name, type, details, lat, lng, status: 'active' }]);
-
-                if (error) {
-                    //เพิ่มเข้ามาเพื่อเช็ค error
-                    console.error("Supabase Error:", error.message); 
-                    console.error("Error Details:", error.details);
-                    console.error("Hint:", error.hint);
-                    throw error;
-                }
-
+                Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                const { error } = await supabaseClient.from('dormitories').insert([{ name, type, details, lat, lng, status: 'active' }]);
+                if (error) throw error;
                 Swal.fire({ icon: 'success', title: 'เพิ่มสำเร็จ', timer: 1500, showConfirmButton: false });
                 fetchDorms(); 
-
-            } catch (err) {
-                Swal.fire('Error', 'เพิ่มข้อมูลไม่สำเร็จ', 'error');
-            }
+            } catch (err) { Swal.fire('Error', 'เพิ่มข้อมูลไม่สำเร็จ', 'error'); }
         }
 
-        // UPDATE: แก้ไขข้อมูล (NEW)
         async function updateDormInSupabase(id, name, type, details) {
             try {
-                const { error } = await supabaseClient
-                    .from('dormitories')
-                    .update({ name, type, details })
-                    .eq('id', id);
-
+                const { error } = await supabaseClient.from('dormitories').update({ name, type, details }).eq('id', id);
                 if (error) throw error;
-
                 Swal.fire({ icon: 'success', title: 'แก้ไขเรียบร้อย', timer: 1500, showConfirmButton: false });
-                fetchDorms(); // รีโหลดหน้าจอ
+                fetchDorms();
+            } catch (err) { Swal.fire('Error', 'แก้ไขข้อมูลไม่สำเร็จ', 'error'); }
+        }
 
-            } catch (err) {
-                console.error(err);
-                Swal.fire('Error', 'แก้ไขข้อมูลไม่สำเร็จ', 'error');
+        window.deletePin = async function(id) {
+            const result = await Swal.fire({ title: 'ยืนยันการลบ?', text: "ข้อมูลจะหายไปถาวร", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'ลบเลย' });
+            if (result.isConfirmed) {
+                try {
+                    const { error } = await supabaseClient.from('dormitories').delete().eq('id', id);
+                    if (error) throw error;
+                    Swal.fire({ icon: 'success', title: 'ลบเรียบร้อยแล้ว', timer: 1000, showConfirmButton: false });
+                    fetchDorms(); 
+                } catch (err) { Swal.fire('Error', 'ลบไม่สำเร็จ', 'error'); }
             }
         }
 
-        // DELETE: ลบข้อมูล
-        window.deletePin = async function(id) {
-            Swal.fire({
-                title: 'ยืนยันการลบ?',
-                text: "ข้อมูลจะหายไปถาวร",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#d33',
-                confirmButtonText: 'ลบเลย'
-            }).then(async (result) => {
-                if (result.isConfirmed) {
-                    try {
-                        const { error } = await supabaseClient
-                            .from('dormitories')
-                            .delete()
-                            .eq('id', id);
-
-                        if (error) throw error;
-                        Swal.fire('Deleted!', 'ลบเรียบร้อยแล้ว', 'success');
-                        fetchDorms(); 
-                    } catch (err) {
-                        Swal.fire('Error', 'ลบไม่สำเร็จ', 'error');
-                    }
-                }
-            });
-        }
-
-        // --------------------------------------------------------
-        // 4. Render Pins & Popups
-        // --------------------------------------------------------
+        // Rendering
         function renderPins(dorms) {
             markers.forEach(m => map.removeLayer(m));
             markers = [];
-
-            if (!dorms) return;
 
             dorms.forEach(dorm => {
                 const isInternal = dorm.type === 'internal';
@@ -255,222 +243,145 @@
                 const styleClass = isInternal ? 'pin-internal' : 'pin-external';
                 const typeLabel = isInternal ? 'หอพักใน' : 'หอพักนอก';
                 const typeColorClass = isInternal ? 'text-kmutnb-main' : 'text-blue-600';
+                const hexColor = isInternal ? '#EE3F0B' : '#2563EB';
 
                 const customIcon = L.divIcon({
                     className: 'custom-div-icon',
-                    html: `<div class="custom-pin ${styleClass}" style="width: 32px; height: 32px;">
+                    html: `<div class="custom-pin ${styleClass}" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; color: ${hexColor}; border-color: ${hexColor}">
                             <i class="fa-solid ${iconClass}"></i>
                            </div>`,
-                    iconSize: [32, 32],
-                    iconAnchor: [16, 32],
-                    popupAnchor: [0, -35]
+                    iconSize: [36, 36], iconAnchor: [18, 36], popupAnchor: [0, -38]
                 });
 
                 const marker = L.marker([dorm.lat, dorm.lng], { icon: customIcon }).addTo(map);
                 
-                // Popup Content
                 let popupContent = `
                     <div class="text-center font-sans p-1 min-w-[200px]">
-                        <h3 class="font-bold text-lg text-gray-800 mb-1 leading-tight">${dorm.name}</h3>
+                        <h3 class="font-bold text-lg text-gray-800 mb-1 leading-tight mt-1">${dorm.name}</h3>
                         <div class="text-xs font-bold ${typeColorClass} mb-1">${typeLabel}</div>
-                        <div class="text-sm text-gray-600 mb-3 bg-gray-50 p-2 rounded border border-gray-100 text-left whitespace-pre-line">
+                        <div class="text-sm text-gray-600 mb-3 bg-gray-50 p-2 rounded border border-gray-100 text-left whitespace-pre-line max-h-32 overflow-y-auto">
                             ${dorm.details || 'ไม่มีรายละเอียด'}
                         </div>
-                        <div class="flex gap-2 justify-center flex-wrap">
+                        <div class="flex gap-2 justify-center flex-wrap mt-1">
+                            <a href="https://www.google.com/maps/dir/?api=1&destination=${dorm.lat},${dorm.lng}" target="_blank" 
+                            class="bg-blue-600 hover:bg-blue-700 !text-white text-xs px-3 py-1.5 rounded-lg flex items-center justify-center gap-1 shadow transition w-full no-underline" style="color: white !important;">
+                            <i class="fa-solid fa-location-arrow"></i> นำทาง
+                            </a>
                 `;
 
-                // ปุ่มนำทาง (ทุกคนเห็น)
-                popupContent += `
-                    <a href="https://www.google.com/maps/dir/?api=1&destination=${dorm.lat},${dorm.lng}" target="_blank" 
-                       class="bg-blue-600 hover:bg-blue-700 !text-white text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 shadow transition"
-                       style="color: white !important;">
-                       <i class="fa-solid fa-location-arrow"></i> นำทาง
-                    </a>
-                `;
-
-                // ส่วนของ Admin (ปุ่มแก้ไข + ลบ)
                 if (userType === 'admin') {
                     popupContent += `
-                        <button onclick="window.openEditPinModal(${dorm.id})" class="bg-yellow-500 hover:bg-yellow-600 text-white text-xs px-3 py-1.5 rounded-lg shadow flex items-center gap-1">
-                           <i class="fa-solid fa-pen-to-square"></i> แก้ไข
-                        </button>
-                        <button onclick="window.deletePin(${dorm.id})" class="bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-1.5 rounded-lg shadow flex items-center gap-1">
-                           <i class="fa-solid fa-trash"></i> ลบ
-                        </button>
+                        <div class="flex gap-2 w-full mt-1">
+                            <button onclick="window.openEditPinModal(${dorm.id})" class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white text-xs px-3 py-1.5 rounded-lg shadow flex items-center justify-center gap-1">
+                            <i class="fa-solid fa-pen"></i> แก้ไข
+                            </button>
+                            <button onclick="window.deletePin(${dorm.id})" class="flex-1 bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-1.5 rounded-lg shadow flex items-center justify-center gap-1">
+                            <i class="fa-solid fa-trash"></i> ลบ
+                            </button>
+                        </div>
                     `;
                 }
 
                 popupContent += `</div></div>`;
-
                 marker.bindPopup(popupContent);
                 markers.push(marker);
             });
         }
 
-        // --------------------------------------------------------
-        // 5. UI & Modals
-        // --------------------------------------------------------
-
+        // Modals
         function handleTopRightButton() {
-            if (userType === 'admin') {
-                openManualAddPinModal();
-            } else {
-                openReportModal();
-            }
+            if (userType === 'admin') openManualAddPinModal();
+            else openReportModal();
         }
 
-        // Modal: แจ้งเรื่อง (User)
         async function openReportModal() {
-            const { value: text } = await Swal.fire({
-                title: 'แนะนำหอ / แจ้งปัญหา',
-                input: 'textarea',
-                inputLabel: 'รายละเอียด',
-                inputPlaceholder: 'พิมพ์ข้อความที่นี่...',
-                showCancelButton: true,
-                confirmButtonText: 'ส่งข้อมูล',
-                confirmButtonColor: '#EE3F0B'
-            });
-
+            const { value: text } = await Swal.fire({ title: 'แนะนำหอ / แจ้งปัญหา', input: 'textarea', inputPlaceholder: 'รายละเอียด...', showCancelButton: true, confirmButtonText: 'ส่งข้อมูล', confirmButtonColor: '#EE3F0B' });
             if (text) {
                 try {
-                    const reporterName = userData.full_name || 'Guest User';
-                    await supabaseClient.from('reports').insert([{ 
-                        description: '[DORM] ' + text, 
-                        reporter_name: reporterName,
-                        status: 'pending'
-                    }]);
+                    await supabaseClient.from('reports').insert([{ description: '[DORM] ' + text, reporter_name: userData.full_name || 'Guest', status: 'pending' }]);
                     Swal.fire('ขอบคุณ', 'ส่งข้อมูลเรียบร้อยแล้ว', 'success');
-                } catch (err) {
-                    Swal.fire('Error', 'ส่งไม่สำเร็จ', 'error');
-                }
+                } catch (err) { Swal.fire('Error', 'ส่งไม่สำเร็จ', 'error'); }
             }
         }
 
-        // Modal: เพิ่มหอพัก (Admin)
+        function getCategorySelectHTML(selected = 'external') {
+            return `
+                <div class="text-left text-sm text-gray-500 mb-1">ประเภท</div>
+                <select id="swal-type" class="swal2-select w-full m-0 mb-3" style="display:flex;">
+                    <option value="internal" ${selected==='internal'?'selected':''}>🏫 หอพักใน (มจพ.)</option>
+                    <option value="external" ${selected==='external'?'selected':''}>🏢 หอพักนอก</option>
+                </select>
+            `;
+        }
+
         async function openAddPinModal(lat, lng) {
-            const { value: formValues } = await Swal.fire({
+            const { value: v } = await Swal.fire({
                 title: 'เพิ่มหอพักใหม่',
-                html:
-                    `<div class="text-left text-sm text-gray-500 mb-1">ชื่อหอพัก</div>` +
-                    `<input id="swal-name" class="swal2-input" placeholder="ชื่อหอพัก" style="margin-top:0;">` +
-                    
-                    `<div class="text-left text-sm text-gray-500 mt-3 mb-1">ประเภท</div>` +
-                    `<select id="swal-type" class="swal2-input" style="margin-top:0;">
-                        <option value="internal">หอพักใน (มจพ.)</option>
-                        <option value="external" selected>หอพักนอก</option>
-                    </select>` +
-                    
-                    `<div class="text-left text-sm text-gray-500 mt-3 mb-1">รายละเอียด/ราคา</div>` +
-                    `<textarea id="swal-details" class="swal2-textarea" placeholder="รายละเอียด..." style="margin-top:0; margin-bottom:0; height: 100px;"></textarea>`,
-                focusConfirm: false,
-                showCancelButton: true,
-                confirmButtonText: 'บันทึก',
-                confirmButtonColor: '#EE3F0B',
+                html: `
+                    <div class="text-left text-sm text-gray-500 mb-1">ชื่อหอพัก</div>
+                    <input id="swal-name" class="swal2-input !w-full !m-0 !mb-3">
+                    ${getCategorySelectHTML()}
+                    <div class="text-left text-sm text-gray-500 mb-1">รายละเอียด/ราคา</div>
+                    <textarea id="swal-details" class="swal2-textarea !w-full !m-0" style="height:80px;"></textarea>`,
+                focusConfirm: false, showCancelButton: true, confirmButtonText: 'บันทึก', confirmButtonColor: '#EE3F0B',
                 preConfirm: () => {
                     const name = document.getElementById('swal-name').value;
-                    const type = document.getElementById('swal-type').value;
-                    const details = document.getElementById('swal-details').value;
-                    if (!name) Swal.showValidationMessage('กรุณาใส่ชื่อหอพัก');
-                    return [name, type, details];
+                    if (!name) return Swal.showValidationMessage('กรุณาใส่ชื่อหอพัก');
+                    return [name, document.getElementById('swal-type').value, document.getElementById('swal-details').value];
                 }
             });
-
-            if (formValues) {
-                addDormToSupabase(formValues[0], formValues[1], formValues[2], lat, lng);
-            }
+            if (v) addDormToSupabase(v[0], v[1], v[2], lat, lng);
         }
 
         async function openManualAddPinModal() {
-            const { value: formValues } = await Swal.fire({
+            const { value: v } = await Swal.fire({
                 title: 'เพิ่มหอพัก (ระบุพิกัด)',
-                html:
-                    // 1. ชื่อหอพัก
-                    `<div class="text-left text-sm text-gray-500 mb-1">ชื่อหอพัก</div>` +
-                    `<input id="manual-name" class="swal2-input" placeholder="ระบุชื่อหอพัก" style="margin-top:0;">` +
-
-                    // 2. ละติจูด (ปรับให้เต็มบรรทัด)
-                    `<div class="text-left text-sm text-gray-500 mt-3 mb-1">ละติจูด (Lat)</div>` +
-                    `<input id="manual-lat" class="swal2-input" placeholder="เช่น 13.81xxx" style="margin-top:0;">` +
-
-                    // 3. ลองจิจูด (ปรับให้เต็มบรรทัด และอยู่ด้านล่าง)
-                    `<div class="text-left text-sm text-gray-500 mt-3 mb-1">ลองจิจูด (Lng)</div>` +
-                    `<input id="manual-lng" class="swal2-input" placeholder="เช่น 100.5xxx" style="margin-top:0;">` +
-                    
-                    // 4. ประเภท
-                    `<div class="text-left text-sm text-gray-500 mt-3 mb-1">ประเภท</div>` +
-                    `<select id="manual-type" class="swal2-input" style="margin-top:0;">
-                        <option value="internal">หอพักใน (มจพ.)</option>
-                        <option value="external" selected>หอพักนอก</option>
-                    </select>` +
-                    
-                    // 5. รายละเอียด
-                    `<div class="text-left text-sm text-gray-500 mt-3 mb-1">รายละเอียด/ราคา</div>` +
-                    `<textarea id="manual-details" class="swal2-textarea" placeholder="รายละเอียด..." style="margin-top:0; margin-bottom:0; height: 100px;"></textarea>`,
-                focusConfirm: false,
-                showCancelButton: true,
-                confirmButtonText: 'บันทึกข้อมูล',
-                confirmButtonColor: '#EE3F0B',
+                html: `
+                    <div class="text-left text-sm text-gray-500 mb-1">ชื่อหอพัก</div>
+                    <input id="m-name" class="swal2-input !w-full !m-0 !mb-3">
+                    <div class="grid grid-cols-2 gap-2 mb-3">
+                        <div><div class="text-left text-sm text-gray-500">Lat</div><input id="m-lat" class="swal2-input !w-full !m-0"></div>
+                        <div><div class="text-left text-sm text-gray-500">Lng</div><input id="m-lng" class="swal2-input !w-full !m-0"></div>
+                    </div>
+                    ${getCategorySelectHTML()}
+                    <div class="text-left text-sm text-gray-500 mb-1">รายละเอียด/ราคา</div>
+                    <textarea id="m-details" class="swal2-textarea !w-full !m-0" style="height:80px;"></textarea>`,
+                focusConfirm: false, showCancelButton: true, confirmButtonText: 'บันทึกข้อมูล', confirmButtonColor: '#EE3F0B',
                 preConfirm: () => {
-                    const name = document.getElementById('manual-name').value;
-                    const lat = document.getElementById('manual-lat').value;
-                    const lng = document.getElementById('manual-lng').value;
-                    const type = document.getElementById('manual-type').value;
-                    const details = document.getElementById('manual-details').value;
-
-                    if (!name) return Swal.showValidationMessage('กรุณาใส่ชื่อหอพัก');
-                    if (!lat || !lng) return Swal.showValidationMessage('กรุณาใส่พิกัดให้ครบ');
-                    
-                    return [name, type, details, parseFloat(lat), parseFloat(lng)];
+                    const name = document.getElementById('m-name').value;
+                    const lat = document.getElementById('m-lat').value;
+                    const lng = document.getElementById('m-lng').value;
+                    if (!name || !lat || !lng) return Swal.showValidationMessage('กรุณากรอกข้อมูลให้ครบ');
+                    return [name, document.getElementById('swal-type').value, document.getElementById('m-details').value, parseFloat(lat), parseFloat(lng)];
                 }
             });
-
-            if (formValues) {
-                // เรียกฟังก์ชันบันทึกข้อมูลลง Supabase
-                addDormToSupabase(formValues[0], formValues[1], formValues[2], formValues[3], formValues[4]);
-                
-                // เลื่อนแผนที่ไปตำแหน่งใหม่
-                map.setView([formValues[3], formValues[4]], 17);
+            if (v) {
+                addDormToSupabase(v[0], v[1], v[2], v[3], v[4]);
+                map.setView([v[3], v[4]], 17);
             }
         }
-        // Modal: แก้ไขหอพัก (Admin) - NEW
+
         window.openEditPinModal = async function(id) {
-            // ค้นหาข้อมูลเดิม
-            const dorm = allDormsData.find(d => d.id === id);
-            if (!dorm) return;
-
-            const { value: formValues } = await Swal.fire({
+            const d = allDormsData.find(x => x.id === id);
+            if (!d) return;
+            const { value: v } = await Swal.fire({
                 title: 'แก้ไขข้อมูลหอพัก',
-                html:
-                    `<div class="text-left text-sm text-gray-500 mb-1">ชื่อหอพัก</div>` +
-                    `<input id="edit-name" class="swal2-input" value="${dorm.name}" style="margin-top:0;">` +
-                    
-                    `<div class="text-left text-sm text-gray-500 mt-3 mb-1">ประเภท</div>` +
-                    `<select id="edit-type" class="swal2-input" style="margin-top:0;">
-                        <option value="internal" ${dorm.type === 'internal' ? 'selected' : ''}>หอพักใน (มจพ.)</option>
-                        <option value="external" ${dorm.type === 'external' ? 'selected' : ''}>หอพักนอก</option>
-                    </select>` +
-                    
-                    `<div class="text-left text-sm text-gray-500 mt-3 mb-1">รายละเอียด/ราคา</div>` +
-                    `<textarea id="edit-details" class="swal2-textarea" style="margin-top:0; margin-bottom:0; height: 100px;">${dorm.details || ''}</textarea>`,
-                focusConfirm: false,
-                showCancelButton: true,
-                confirmButtonText: 'อัปเดต',
-                confirmButtonColor: '#F59E0B', // สีเหลือง
+                html: `
+                    <div class="text-left text-sm text-gray-500 mb-1">ชื่อหอพัก</div>
+                    <input id="e-name" class="swal2-input !w-full !m-0 !mb-3" value="${d.name}">
+                    ${getCategorySelectHTML(d.type)}
+                    <div class="text-left text-sm text-gray-500 mb-1">รายละเอียด/ราคา</div>
+                    <textarea id="e-details" class="swal2-textarea !w-full !m-0" style="height:80px;">${d.details || ''}</textarea>`,
+                focusConfirm: false, showCancelButton: true, confirmButtonText: 'อัปเดต', confirmButtonColor: '#F59E0B',
                 preConfirm: () => {
-                    const name = document.getElementById('edit-name').value;
-                    const type = document.getElementById('edit-type').value;
-                    const details = document.getElementById('edit-details').value;
-                    if (!name) Swal.showValidationMessage('กรุณาใส่ชื่อหอพัก');
-                    return [name, type, details];
+                    const name = document.getElementById('e-name').value;
+                    if (!name) return Swal.showValidationMessage('กรุณาใส่ชื่อหอพัก');
+                    return [name, document.getElementById('swal-type').value, document.getElementById('e-details').value];
                 }
             });
-
-            if (formValues) {
-                updateDormInSupabase(id, formValues[0], formValues[1], formValues[2]);
-            }
+            if (v) updateDormInSupabase(id, v[0], v[1], v[2]);
         }
 
-        // Start App
         updateUI();
         initMap();
 
