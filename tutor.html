@@ -3,15 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KMUTNB tutor - ค้นหาติวเตอร์</title>
+    <title>KMUTNB Tutor - ค้นหาติวเตอร์</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.6/viewer.min.css" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.6/viewer.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;700&display=swap" rel="stylesheet">
 
     <script>
@@ -20,7 +18,6 @@
                 extend: {
                     colors: {
                         kmutnb: { main: '#EE3F0B', light: '#FF6B42' },
-
                     },
                     fontFamily: { sans: ['Prompt', 'sans-serif'] }
                 }
@@ -30,41 +27,32 @@
 
     <style>
         body { font-family: 'Prompt', sans-serif; }
-        #map { height: calc(100vh - 64px); width: 100%; z-index: 0; }
-        
-        /* Custom Marker Style */
         .custom-pin {
             background-color: white;
             border-radius: 50%;
-            border: 2px solid #EE3F0B;
+            border: 2px solid #10B981; /* เขียว Tutor */
             text-align: center;
-            color: #EE3F0B;
+            color: #10B981;
             font-size: 16px;
             padding-top: 4px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
             transition: transform 0.2s;
         }
         .custom-pin:hover {
-            transform: scale(1.1);
-            background-color: #EE3F0B;
+            transform: scale(1.15);
+            background-color: #10B981;
             color: white;
             border-color: white;
+            z-index: 999;
         }
-        
-/* สไตล์ */
-        .pin-tutor { border-color: #10B981; color: #10B981; }
-        .pin-tutor:hover { background-color: #10B981; }
-
-        /* ปรับแต่ง Popup ให้กว้างขึ้นเล็กน้อย */
-        .leaflet-popup-content-wrapper {
-            border-radius: 12px;
-        }
+        .custom-pin i { transition: color 0.2s; }
+        .custom-pin:hover i { color: white !important; }
+        .leaflet-popup-content-wrapper { border-radius: 12px; }
     </style>
-
 </head>
 <body class="bg-gray-100 h-screen overflow-hidden flex flex-col">
 
-    <header class="bg-white shadow-md z-20 flex flex-col">
+    <header class="bg-white shadow-md z-20 flex flex-col shrink-0">
         <div class="h-16 flex items-center justify-between px-4 border-b border-gray-100">
             <div class="flex items-center gap-3">
                 <a href="index.html" class="w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 transition">
@@ -76,32 +64,35 @@
                 </div>
             </div>
 
-            <button onclick="handleTopRightButton()" id="action-btn" class="bg-kmutnb-main hover:bg-orange-700 text-white px-6 py-2 rounded-full text-sm font-bold shadow-lg transition flex items-center gap-2">
+            <button onclick="handleTopRightButton()" id="action-btn" class="bg-kmutnb-main hover:bg-orange-700 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg transition flex items-center gap-2">
                 <i class="fa-solid fa-map-pin"></i>
-                <span id="action-btn-text">จัดการระบบ</span>
+                <span id="action-btn-text" class="hidden sm:inline">จัดการระบบ</span>
             </button>
         </div>
-
     </header>
 
-    <div id="map" class="relative"></div>
+    <div class="relative flex-1">
+        <div class="absolute top-4 left-1/2 -translate-x-1/2 w-[95%] sm:w-[450px] z-[500] pointer-events-none">
+            <div class="bg-white p-2 rounded-xl shadow-lg pointer-events-auto flex items-center gap-2 w-full">
+                <i class="fa-solid fa-magnifying-glass text-gray-400 ml-2"></i>
+                <input type="text" id="search-input" onkeyup="applyFilters()" 
+                       class="w-full bg-transparent outline-none text-sm text-gray-700 placeholder-gray-400" 
+                       placeholder="ค้นหาชื่อติวเตอร์ สถาบัน หรือวิชา...">
+            </div>
+        </div>
+
+        <div id="map" class="h-full w-full z-0 relative"></div>
+    </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <script>
-        // --------------------------------------------------------
-        // Config Supabase
-        // --------------------------------------------------------
         const SUPABASE_URL = 'https://hcjquegorteantfzckpf.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_3bK3c4hh7hu37K0XxCzXVA_-5rJH89L'; 
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // --------------------------------------------------------
-        // 1. User & Session Management
-        // --------------------------------------------------------
         let userData = JSON.parse(sessionStorage.getItem('userData')) || {};
         let userType = sessionStorage.getItem('userType') || 'guest';
-        
         if(userData.role === 'admin') userType = 'admin';
 
         function updateUI() {
@@ -110,7 +101,7 @@
             const btnIcon = document.querySelector('#action-btn i');
 
             if (userType === 'admin') {
-                statusText.innerText = 'โหมดผู้ดูแล: แตะแผนที่เพื่อเพิ่ม / แตะหมุดเพื่อแก้ไข';
+                statusText.innerText = 'Admin Mode: แตะแผนที่เพื่อเพิ่ม / แตะหมุดเพื่อแก้ไข';
                 statusText.className = 'text-xs text-red-600 font-bold';
                 btnText.innerText = 'จัดการระบบ';
                 btnIcon.className = 'fa-solid fa-map-pin';
@@ -122,17 +113,15 @@
             }
         }
 
-        // --------------------------------------------------------
-        // 2. Map Initialization
-        // --------------------------------------------------------
         const KMUTNB_LAT = 13.819077;
         const KMUTNB_LNG = 100.514332;
         let map;
         let markers = [];
-        let all_tutor_Data = []; // เก็บข้อมูลร้านทั้งหมดไว้เพื่อใช้ตอน Edit
+        let all_tutor_Data = []; 
 
         function initMap() {
-            map = L.map('map').setView([KMUTNB_LAT, KMUTNB_LNG], 16);
+            map = L.map('map', { zoomControl: false }).setView([KMUTNB_LAT, KMUTNB_LNG], 16);
+            L.control.zoom({ position: 'bottomright' }).addTo(map);
 
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '© OpenStreetMap contributors'
@@ -140,357 +129,208 @@
 
             fetch_tutor();
 
-            // Admin: Click map to ADD pin
             map.on('click', function(e) {
-                if (userType === 'admin') {
-                    openAddPinModal(e.latlng.lat, e.latlng.lng);
-                }
+                if (userType === 'admin') openAddPinModal(e.latlng.lat, e.latlng.lng);
             });
         }
 
-        // --------------------------------------------------------
-        // 3. Supabase Operations
-        // --------------------------------------------------------
+        // --- Search Logic ---
+        function applyFilters() {
+            const searchText = document.getElementById('search-input').value.toLowerCase();
+            const filteredData = all_tutor_Data.filter(item => {
+                const name = (item.name || '').toLowerCase();
+                const details = (item.details || '').toLowerCase();
+                return name.includes(searchText) || details.includes(searchText);
+            });
+            renderPins(filteredData);
+        }
+        // --------------------
 
-        // READ: ดึงข้อมูล
         async function fetch_tutor() {
             try {
-                const { data, error } = await supabaseClient
-                    .from('tutor') 
-                    .select('*')
-                    .order('id', { ascending: true }); // เรียงตาม ID
-
+                const { data, error } = await supabaseClient.from('tutor').select('*').order('id', { ascending: true });
                 if (error) throw error;
-                
-                all_tutor_Data = data; // บันทึกข้อมูลลงตัวแปร Global
-                renderPins(data);
+                all_tutor_Data = data; 
+                applyFilters(); // อัปเดตการแสดงผล
 
-            } catch (err) {
-                console.error('Error fetching tutor:', err);
-            }
+            } catch (err) { console.error('Error fetching tutor:', err); }
         }
-
         
-        // CREATE: เพิ่มข้อมูล
         async function add_tutor_ToSupabase(name, type, details, lat, lng, url_contact) {
             try {
-                Swal.fire({ title: 'กำลังบันทึกข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-
-                const { error } = await supabaseClient
-                    .from('tutor')
-                    .insert([{ name, type, details, lat, lng, url_contact }]);
-
-                if (error) {
-                    //เพิ่มเข้ามาเพื่อเช็ค error
-                    console.error("Supabase Error:", error.message); 
-                    console.error("Error Details:", error.details);
-                    console.error("Hint:", error.hint);
-                    throw error;
-                }
-
+                Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                const { error } = await supabaseClient.from('tutor').insert([{ name, type, details, lat, lng, url_contact }]);
+                if (error) throw error;
                 Swal.fire({ icon: 'success', title: 'เพิ่มสำเร็จ', timer: 1500, showConfirmButton: false });
                 fetch_tutor(); 
-
-            } catch (err) {
-                Swal.fire('Error', 'เพิ่มข้อมูลไม่สำเร็จ', 'error');
-            }
+            } catch (err) { Swal.fire('Error', 'เพิ่มข้อมูลไม่สำเร็จ', 'error'); }
         }
 
-        // UPDATE: แก้ไขข้อมูล (NEW)
         async function update_tutor_InSupabase(id, name, type, details, url_contact) {
             try {
-                const { error } = await supabaseClient
-                    .from('tutor')
-                    .update({ name, type, details, url_contact })
-                    .eq('id', id);
-
+                const { error } = await supabaseClient.from('tutor').update({ name, type, details, url_contact }).eq('id', id);
                 if (error) throw error;
-
                 Swal.fire({ icon: 'success', title: 'แก้ไขเรียบร้อย', timer: 1500, showConfirmButton: false });
-                fetch_tutor(); // รีโหลดหน้าจอ
-
-            } catch (err) {
-                console.error(err);
-                Swal.fire('Error', 'แก้ไขข้อมูลไม่สำเร็จ', 'error');
-            }
+                fetch_tutor(); 
+            } catch (err) { Swal.fire('Error', 'แก้ไขข้อมูลไม่สำเร็จ', 'error'); }
         }
 
-        // DELETE: ลบข้อมูล
         window.deletePin = async function(id) {
-            const result = await Swal.fire({
-                title: 'ยืนยันการลบ?',
-                text: "ข้อมูลจะหายไปถาวร",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#EF4444',
-                confirmButtonText: 'ลบเลย',
-                cancelButtonText: 'Cancel',
-                cancelButtonColor: '#71767b'
-            });
-
+            const result = await Swal.fire({ title: 'ยืนยันการลบ?', text: "ข้อมูลจะหายไปถาวร", icon: 'warning', showCancelButton: true, confirmButtonColor: '#EF4444', confirmButtonText: 'ลบเลย' });
             if (result.isConfirmed) {
                 try {
-                    // 1. Perform Delete in Supabase
-                    const { error } = await supabaseClient
-                        .from('tutor')
-                        .delete()
-                        .eq('id', id);
-
+                    const { error } = await supabaseClient.from('tutor').delete().eq('id', id);
                     if (error) throw error;
-
-                    // 2. Clear markers from map immediately
-                    markers.forEach(m => map.removeLayer(m));
-                    markers = [];
-
-                    // 3. Re-fetch and Re-render
-                    await fetch_tutor(); 
-
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'ลบเรียบร้อยแล้ว',
-                        timer: 1500,
-                        showConfirmButton: false
-                    });
-
-                } catch (err) {
-                    console.error('Delete error:', err);
-                    Swal.fire('Error', 'ลบไม่สำเร็จ: ' + err.message, 'error');
-                }
+                    Swal.fire({ icon: 'success', title: 'ลบเรียบร้อยแล้ว', timer: 1500, showConfirmButton: false });
+                    fetch_tutor(); 
+                } catch (err) { Swal.fire('Error', 'ลบไม่สำเร็จ: ' + err.message, 'error'); }
             }
         }
 
-        // --------------------------------------------------------
-        // 4. Render Pins & Popups
-        // --------------------------------------------------------
         function renderPins(data) {
-            // 1. ลบหมุดเดิมทั้งหมดออกจากแผนที่ก่อน
             markers.forEach(m => map.removeLayer(m));
             markers = [];
 
-            if (!data || data.length === 0) return;
-
             data.forEach(item => {
-                // กำหนดไอคอนหมุด (Pin) ให้เป็นธีมการศึกษา (หมวกรับปริญญา)
                 const customIcon = L.divIcon({
                     className: 'custom-div-icon',
-                    html: `<div class="custom-pin" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: white; border: 2px solid #0284c7; border-radius: 50%; color: #0284c7; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
-                                <i class="fa-solid fa-graduation-cap"></i>
-                            </div>`,
-                    iconSize: [32, 32],
-                    iconAnchor: [16, 32],
-                    popupAnchor: [0, -35]
+                    html: `<div class="custom-pin" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-graduation-cap"></i></div>`,
+                    iconSize: [36, 36], iconAnchor: [18, 36], popupAnchor: [0, -38]
                 });
 
                 const marker = L.marker([item.lat, item.lng], { icon: customIcon }).addTo(map);
                 
-                // เริ่มสร้างเนื้อหาใน Popup
                 let popupContent = `
                     <div class="text-center font-sans p-1 min-w-[220px]">
-                        <h3 class="font-bold text-lg text-gray-800 mb-1 leading-tight">${item.name}</h3>
-                        <div class="text-sm text-gray-600 mb-3 bg-gray-50 p-2 rounded border border-gray-100 text-left whitespace-pre-line">
-                            ${item.details || 'ไม่มีรายละเอียด'}
-                        </div>
+                        <h3 class="font-bold text-lg text-gray-800 mb-1 leading-tight mt-1">${item.name}</h3>
+                        <div class="text-sm text-gray-600 mb-3 bg-gray-50 p-2 rounded border border-gray-100 text-left whitespace-pre-line max-h-32 overflow-y-auto">${item.details || 'ไม่มีรายละเอียด'}</div>
                 `;
                 
-                // ส่วนแสดงลิงก์ Contact (จะแสดงเป็นปุ่มสีเขียวเพื่อให้ผู้ใช้กดเปิดแท็บใหม่)
                 if (item.url_contact) { 
                     popupContent += `
                         <div class="mb-3">
                             <a href="${item.url_contact}" target="_blank" 
-                            class="w-full bg-emerald-500 hover:bg-emerald-600 px-3 py-2.5 rounded-lg flex items-center justify-center gap-2 shadow-sm transition-all font-bold"
-                            style="color: white !important; text-decoration: none !important;">
-                                <i class="fa-solid fa-comment-dots" style="color: white !important;"></i>
-                                <span style="color: white !important;">ติดต่อ / ดูรายละเอียด</span>
+                            class="w-full bg-emerald-500 hover:bg-emerald-600 px-3 py-2 rounded-lg flex items-center justify-center gap-2 shadow-sm transition-all font-bold no-underline" style="color: white !important;">
+                                <i class="fa-solid fa-comment-dots"></i>
+                                <span>ติดต่อ / ดูรายละเอียด</span>
                             </a>
-                            <div class="text-[10px] text-gray-400 mt-1 break-all overflow-hidden text-ellipsis text-left">
-                                ${item.url_contact}
-                            </div>
                         </div>
                     `;
                 }
 
-                // ส่วนของปุ่ม Action ด้านล่าง (นำทาง และ จัดการสำหรับ Admin)
                 popupContent += `
                         <div class="flex gap-2 justify-center flex-wrap border-t pt-2 mt-1">
                             <a href="https://www.google.com/maps/dir/?api=1&destination=${item.lat},${item.lng}" target="_blank"
-                            class="bg-blue-600 hover:bg-blue-700 !text-white text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 shadow transition font-medium"
-                            style="color: white !important;">
+                            class="bg-blue-600 hover:bg-blue-700 !text-white text-xs px-3 py-1.5 rounded-lg flex items-center gap-1 shadow transition w-full justify-center no-underline" style="color: white !important;">
                                 <i class="fa-solid fa-location-arrow"></i> นำทาง
                             </a>
                 `;
 
                 if (userType === 'admin') {
                     popupContent += `
-                            <button onclick="window.openEditPinModal(${item.id})" class="bg-yellow-500 hover:bg-yellow-600 text-white text-xs px-3 py-1.5 rounded-lg shadow flex items-center gap-1 font-medium">
-                                <i class="fa-solid fa-pen-to-square"></i> แก้ไข
+                        <div class="flex gap-2 w-full mt-1">
+                            <button onclick="window.openEditPinModal(${item.id})" class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white text-xs px-3 py-1.5 rounded-lg shadow flex items-center justify-center gap-1">
+                                <i class="fa-solid fa-pen"></i> แก้ไข
                             </button>
-                            <button onclick="window.deletePin(${item.id})" class="bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-1.5 rounded-lg shadow flex items-center gap-1 font-medium">
+                            <button onclick="window.deletePin(${item.id})" class="flex-1 bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-1.5 rounded-lg shadow flex items-center justify-center gap-1">
                                 <i class="fa-solid fa-trash"></i> ลบ
                             </button>
+                        </div>
                     `;
                 }
 
                 popupContent += `</div></div>`;
-                
                 marker.bindPopup(popupContent);
                 markers.push(marker); 
             });
         }
-        // --------------------------------------------------------
-        // 5. UI & Modals
-        // --------------------------------------------------------
 
         function handleTopRightButton() {
-            if (userType === 'admin') {
-                openManualAddPinModal();
-            } else {
-                openReportModal();
-            }
+            if (userType === 'admin') openManualAddPinModal();
+            else openReportModal();
         }
 
-        // Modal: แจ้งเรื่อง (User)
         async function openReportModal() {
-            const { value: text } = await Swal.fire({
-                title: 'แนะนำร้าน / แจ้งปัญหา',
-                input: 'textarea',
-                inputLabel: 'รายละเอียด',
-                inputPlaceholder: 'พิมพ์ข้อความที่นี่...',
-                showCancelButton: true,
-                confirmButtonText: 'ส่งข้อมูล',
-                confirmButtonColor: '#EE3F0B'
-            });
-
+            const { value: text } = await Swal.fire({ title: 'แนะนำติวเตอร์ / แจ้งปัญหา', input: 'textarea', inputPlaceholder: 'พิมพ์ข้อความที่นี่...', showCancelButton: true, confirmButtonText: 'ส่งข้อมูล', confirmButtonColor: '#EE3F0B' });
             if (text) {
                 try {
-                    const reporterName = userData.full_name || 'Guest User';
-                    await supabaseClient.from('reports').insert([{ 
-                        description: '[restaurants] ' + text, 
-                        reporter_name: reporterName,
-                        status: 'pending'
-                    }]);
+                    await supabaseClient.from('reports').insert([{ description: '[tutor] ' + text, reporter_name: userData.full_name || 'Guest User', status: 'pending' }]);
                     Swal.fire('ขอบคุณ', 'ส่งข้อมูลเรียบร้อยแล้ว', 'success');
-                } catch (err) {
-                    Swal.fire('Error', 'ส่งไม่สำเร็จ', 'error');
-                }
+                } catch (err) { Swal.fire('Error', 'ส่งไม่สำเร็จ', 'error'); }
             }
         }
 
-        // 1. Modal: เพิ่มที่เรียนพิเศษ (คลิกจากแผนที่)
         async function openAddPinModal(lat, lng) {
             const { value: v } = await Swal.fire({
                 title: 'เพิ่มสถานที่เรียนพิเศษ',
                 html: `
                     <div class="text-left text-sm text-gray-500 mb-1">ชื่อสถาบัน/ผู้สอน</div>
-                    <input id="s-name" class="swal2-input" placeholder="ระบุชื่อ..." style="margin-top:0;">
-                    
-                    <div class="text-left text-sm text-gray-500 mt-3 mb-1">URL ลิงก์ติดต่อ (เช่น Facebook, Line)</div>
-                    <input id="s-image-url" class="swal2-input" placeholder="https://facebook.com/..." style="margin-top:0;">
-                    
-                    <div class="text-left text-sm text-gray-500 mt-3 mb-1">รายละเอียดคอร์สเรียน/เบอร์โทรติดต่อ</div>
-                    <textarea id="s-details" class="swal2-textarea" placeholder="ระบุรายละเอียด..." style="margin-top:0; height: 100px;"></textarea>`,
-                
-                focusConfirm: false,
-                showCancelButton: true,
-                confirmButtonText: 'บันทึกข้อมูล',
-                confirmButtonColor: '#0284c7',
-                cancelButtonText: 'ยกเลิก',
+                    <input id="s-name" class="swal2-input !w-full !m-0 !mb-3">
+                    <div class="text-left text-sm text-gray-500 mb-1">URL ลิงก์ติดต่อ (เช่น Facebook)</div>
+                    <input id="s-image-url" class="swal2-input !w-full !m-0 !mb-3" placeholder="https://...">
+                    <div class="text-left text-sm text-gray-500 mb-1">รายละเอียดคอร์ส/เบอร์ติดต่อ</div>
+                    <textarea id="s-details" class="swal2-textarea !w-full !m-0" style="height: 80px;"></textarea>`,
+                focusConfirm: false, showCancelButton: true, confirmButtonText: 'บันทึก', confirmButtonColor: '#0284c7',
                 preConfirm: () => {
                     const name = document.getElementById('s-name').value;
-                    const imageUrl = document.getElementById('s-image-url').value;
-                    const details = document.getElementById('s-details').value;
-
                     if (!name) return Swal.showValidationMessage('กรุณาใส่ชื่อที่เรียนพิเศษ');
-                    return [name, details, imageUrl];
+                    return [name, document.getElementById('s-details').value, document.getElementById('s-image-url').value];
                 }
             });
-
-            // เรียกฟังก์ชันบันทึก (ส่ง type เป็น null หรือค่าว่าง เพราะตัดประเภทออกแล้ว)
             if (v) add_tutor_ToSupabase(v[0], null, v[1], lat, lng, v[2]);
         }
 
-        // 2. Modal: เพิ่มที่เรียนพิเศษ (ระบุพิกัดเอง)
         async function openManualAddPinModal() {
             const { value: formValues } = await Swal.fire({
                 title: 'เพิ่มที่เรียนพิเศษ (ระบุพิกัด)',
-                html:
-                    `<div class="text-left text-sm text-gray-500 mb-1">ชื่อสถาบัน/ผู้สอน</div>` +
-                    `<input id="manual-name" class="swal2-input !w-full !m-0 !mb-3" placeholder="ระบุชื่อ...">` +
-
-                    `<div class="text-left text-sm text-gray-500 mb-1">ละติจูด (Lat)</div>` +
-                    `<input id="manual-lat" class="swal2-input !w-full !m-0 !mb-3" placeholder="เช่น 13.81xxx">` +
-
-                    `<div class="text-left text-sm text-gray-500 mb-1">ลองจิจูด (Lng)</div>` +
-                    `<input id="manual-lng" class="swal2-input !w-full !m-0 !mb-3" placeholder="เช่น 100.5xxx">` +
-                    
-                    `<div class="text-left text-sm text-gray-500 mb-1">ลิงก์ติดต่อ (เช่น Facebook, Line)</div>` +
-                    `<input id="manual-image-url" class="swal2-input !w-full !m-0 !mb-3" placeholder="https://facebook.com/...">` +
-
-                    `<div class="text-left text-sm text-gray-500 mb-1">รายละเอียด/ติดต่อ</div>` +
-                    `<textarea id="manual-details" class="swal2-textarea !w-full !m-0" placeholder="รายละเอียด..." style="height: 100px;"></textarea>`,
-                        
-                focusConfirm: false,
-                showCancelButton: true,
-                confirmButtonText: 'บันทึกข้อมูล',
-                confirmButtonColor: '#0284c7',
-                cancelButtonText: 'ยกเลิก',
+                html: `
+                    <div class="text-left text-sm text-gray-500 mb-1">ชื่อสถาบัน/ผู้สอน</div>
+                    <input id="manual-name" class="swal2-input !w-full !m-0 !mb-3">
+                    <div class="grid grid-cols-2 gap-2 mb-3">
+                        <div><div class="text-left text-sm text-gray-500">Lat</div><input id="manual-lat" class="swal2-input !w-full !m-0"></div>
+                        <div><div class="text-left text-sm text-gray-500">Lng</div><input id="manual-lng" class="swal2-input !w-full !m-0"></div>
+                    </div>
+                    <div class="text-left text-sm text-gray-500 mb-1">ลิงก์ติดต่อ</div>
+                    <input id="manual-image-url" class="swal2-input !w-full !m-0 !mb-3" placeholder="https://...">
+                    <div class="text-left text-sm text-gray-500 mb-1">รายละเอียด</div>
+                    <textarea id="manual-details" class="swal2-textarea !w-full !m-0" style="height: 80px;"></textarea>`,
+                focusConfirm: false, showCancelButton: true, confirmButtonText: 'บันทึก', confirmButtonColor: '#0284c7',
                 preConfirm: () => {
                     const name = document.getElementById('manual-name').value;
                     const lat = document.getElementById('manual-lat').value;
                     const lng = document.getElementById('manual-lng').value;
-                    const details = document.getElementById('manual-details').value;
-                    const imageUrl = document.getElementById('manual-image-url').value;
-
-                    if (!name) return Swal.showValidationMessage('กรุณาใส่ชื่อที่เรียน');
-                    if (!lat || !lng) return Swal.showValidationMessage('กรุณาใส่พิกัดให้ครบ');
-                    
-                    return [name, details, parseFloat(lat), parseFloat(lng), imageUrl];
+                    if (!name || !lat || !lng) return Swal.showValidationMessage('กรุณากรอกข้อมูลให้ครบ');
+                    return [name, document.getElementById('manual-details').value, parseFloat(lat), parseFloat(lng), document.getElementById('manual-image-url').value];
                 }
             });
-
             if (formValues) {
                 add_tutor_ToSupabase(formValues[0], null, formValues[1], formValues[2], formValues[3], formValues[4]);
                 map.setView([formValues[2], formValues[3]], 17);
             }
         }
 
-        // 3. Modal: แก้ไขข้อมูลที่เรียนพิเศษ
         window.openEditPinModal = async function(id) {
             const tutor = all_tutor_Data.find(r => r.id === id);
             if (!tutor) return;
-
             const { value: formValues } = await Swal.fire({
                 title: 'แก้ไขข้อมูลที่เรียนพิเศษ',
-                html:
-                    `<div class="text-left text-sm text-gray-500 mb-1">ชื่อสถาบัน/ผู้สอน</div>` +
-                    `<input id="edit-name" class="swal2-input" value="${tutor.name}" style="margin-top:0;">` +
-                    
-                    `<div class="text-left text-sm text-gray-500 mt-3 mb-1">URL รูปภาพใหม่</div>` +
-                    `<input id="edit-image-url" class="swal2-input" value="${tutor.image_url || ''}" placeholder="https://..." style="margin-top:0;">` +
-                    
-                    `<div class="text-left text-sm text-gray-500 mt-3 mb-1">รายละเอียด/ติดต่อ</div>` +
-                    `<textarea id="edit-details" class="swal2-textarea" style="margin-top:0; height: 100px;">${tutor.details || ''}</textarea>`,
-                
-                focusConfirm: false,
-                showCancelButton: true,
-                confirmButtonText: 'อัปเดตข้อมูล',
-                confirmButtonColor: '#F59E0B',
-                cancelButtonText: 'ยกเลิก',
+                html: `
+                    <div class="text-left text-sm text-gray-500 mb-1">ชื่อสถาบัน/ผู้สอน</div>
+                    <input id="edit-name" class="swal2-input !w-full !m-0 !mb-3" value="${tutor.name}">
+                    <div class="text-left text-sm text-gray-500 mb-1">URL รูปภาพ/ลิงก์</div>
+                    <input id="edit-image-url" class="swal2-input !w-full !m-0 !mb-3" value="${tutor.url_contact || tutor.image_url || ''}">
+                    <div class="text-left text-sm text-gray-500 mb-1">รายละเอียด</div>
+                    <textarea id="edit-details" class="swal2-textarea !w-full !m-0" style="height: 80px;">${tutor.details || ''}</textarea>`,
+                focusConfirm: false, showCancelButton: true, confirmButtonText: 'อัปเดต', confirmButtonColor: '#F59E0B',
                 preConfirm: () => {
                     const name = document.getElementById('edit-name').value;
-                    const imageUrl = document.getElementById('edit-image-url').value;
-                    const details = document.getElementById('edit-details').value;
                     if (!name) Swal.showValidationMessage('กรุณาใส่ชื่อที่เรียน');
-                    return [name, details, imageUrl];
+                    return [name, document.getElementById('edit-details').value, document.getElementById('edit-image-url').value];
                 }
             });
-
-            if (formValues) {
-                // อัปเดตข้อมูล (ส่งชื่อ, ประเภท(null), รายละเอียด, และ URL รูปภาพ)
-                update_tutor_InSupabase(id, formValues[0], null, formValues[1], formValues[2]);
-            }
+            if (formValues) update_tutor_InSupabase(id, formValues[0], null, formValues[1], formValues[2]);
         }
 
-        // Start App
         updateUI();
         initMap();
 
