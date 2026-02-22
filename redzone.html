@@ -126,6 +126,30 @@
         </div>
     </div>
 
+    <div id="welcome-modal" class="modal-overlay">
+        <div class="modal-content" style="border-top: 5px solid #ff4800;">
+            <h2 style="color:#333; margin-top:0;">🗺️ ยินดีต้อนรับสู่ Red Zone Alert</h2>
+            <p style="font-size: 14px; color: #555; line-height: 1.6;">
+                เว็บไซต์สำหรับแจ้งเตือนและหลีกเลี่ยงพื้นที่อันตราย<br>
+                <b>วิธีใช้งานเบื้องต้น:</b>
+            </p>
+            <ul style="font-size: 14px; color: #555; padding-left: 20px; margin-bottom: 15px;">
+                <li>🎯 <b>จุดสีน้ำเงิน:</b> คือตำแหน่งปัจจุบันของคุณ</li>
+                <li>🔴 <b>วงกลมสีต่างๆ:</b> คือพื้นที่อันตรายที่มีคนแจ้งเหตุไว้</li>
+                <li>👆 <b>คลิกบนแผนที่:</b> เพื่อแจ้งเหตุในบริเวณนั้น (อยู่ในรัศมี 250 ม.)</li>
+                <li>🖱️ <b>คลิกขวา (หรือกดค้าง):</b> เพื่อนำทางเดินเท้า ระบบจะเตือนหากเส้นทางผ่านเขตอันตราย</li>
+            </ul>
+            
+            <div style="text-align: right; margin-bottom: 15px;">
+                <label style="font-size: 12px; color: #666; cursor: pointer;">
+                    <input type="checkbox" id="dont-show-again" style="vertical-align: middle;"> ไม่แสดงหน้านี้อีก
+                </label>
+            </div>
+
+            <button onclick="closeWelcomeModal()" style="background:#ff4800; color:white; width:100%; padding:12px; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">เริ่มใช้งานเลย</button>
+        </div>
+    </div>
+
     <div id="toast"></div>
 
     <div id="context-menu" style="display:none; position:absolute; z-index:3000; background:white; border-radius:8px; box-shadow:0 4px 15px rgba(0,0,0,0.2); overflow:hidden; min-width:160px;">
@@ -139,7 +163,6 @@
 
     <script>
         // --- 1. SETUP & CONFIG ---
-        // (ใช้ Config เดิมจากโค้ดแผนที่ สำหรับเชื่อมต่อฐานข้อมูลดึงหมุด Red zone)
         const PROJECT_URL = 'https://yowjvmiosrclqstoeqat.supabase.co';
         const ANON_KEY = 'sb_publishable_3OX-g4Dm1p4ZwwHV_fr3nA_wtq0RkmS';
         
@@ -164,8 +187,7 @@
             high: { radius: 1000, color: '#d32f2f', label: '🔴 วิกฤต' }
         };
 
-        // --- 2. AUTHENTICATION (แก้ไขใหม่เชื่อมกับ sessionStorage) ---
-        // --- 2. AUTHENTICATION (แก้ไขใหม่เชื่อมกับ sessionStorage) ---
+        // --- 2. AUTHENTICATION (แก้ไขใหม่เชื่อมกับ sessionStorage และแสดงชื่อ) ---
         function checkSession() {
             // ตรวจสอบสถานะการล็อกอินจาก sessionStorage
             const isLoggedIn = sessionStorage.getItem('isLoggedIn');
@@ -199,8 +221,7 @@
                         ...data
                     };
                     
-                    // --- จุดที่แก้ไข: เปลี่ยนให้แสดงชื่อ-นามสกุล (full_name) แทนรหัสนักศึกษา ---
-                    // หากไม่มี full_name ให้แสดง username สำรองไว้กันพัง
+                    // เปลี่ยนให้แสดงชื่อ-นามสกุล (full_name) แทนรหัสนักศึกษา
                     document.getElementById('display-email').innerText = currentUser.full_name || currentUser.username;
                     
                 } else {
@@ -216,10 +237,12 @@
             
             setInterval(fetchZonesFromDB, 3000); 
             setInterval(updateTimers, 1000); 
+
+            // เรียกหน้าต่างคำแนะนำขึ้นมา
+            showWelcomeModal();
         }
 
         function handleLogout() {
-            // เคลียร์ค่า Session ออกให้หมดแล้วเด้งกลับหน้า Login
             sessionStorage.clear();
             window.location.href = 'login.html';
         }
@@ -539,6 +562,24 @@
             t.style.display='block'; 
             clearTimeout(t.tid); 
             t.tid=setTimeout(()=>t.style.display='none',3000); 
+        }
+
+        // --- ส่วนควบคุม Welcome Modal ---
+        function showWelcomeModal() {
+            // เช็คว่าผู้ใช้เคยติ๊ก "ไม่แสดงอีก" ไว้ไหม
+            const dontShow = localStorage.getItem('hideWelcomeAlert');
+            if (!dontShow) {
+                document.getElementById('welcome-modal').style.display = 'flex';
+            }
+        }
+
+        function closeWelcomeModal() {
+            // ถ้าติ๊กถูก ให้บันทึกลง localStorage
+            const checkbox = document.getElementById('dont-show-again');
+            if (checkbox && checkbox.checked) {
+                localStorage.setItem('hideWelcomeAlert', 'true');
+            }
+            document.getElementById('welcome-modal').style.display = 'none';
         }
 
         // --- 9. ROUTING ---
