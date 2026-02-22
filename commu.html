@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KMUTNB Community - พูดคุยและถามตอบ</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: { kmutnb: { main: '#EE3F0B', light: '#FF6B42', bg: '#F2F4F8' } },
+                    fontFamily: { sans: ['Prompt', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { background-color: #F2F4F8; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .cat-chip.active { background-color: #EE3F0B; color: white; border-color: #EE3F0B; }
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(2px);
+            display: none; justify-content: center; align-items: center; z-index: 50;
+        }
+        .modal-content {
+            background: white; width: 90%; max-width: 500px; max-height: 90vh;
+            border-radius: 20px; padding: 24px; animation: slideUp 0.3s ease-out;
+            display: flex; flex-direction: column;
+        }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    </style>
+</head>
+<body class="font-sans text-gray-800 h-screen flex flex-col overflow-hidden">
+
+    <header class="bg-white shadow-sm z-20 h-16 flex items-center justify-between px-4 shrink-0 relative">
+        <div class="flex items-center gap-3">
+            <a href="index.html" class="w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600 transition">
+                <i class="fa-solid fa-arrow-left"></i>
+            </a>
+            <div>
+                <h1 class="text-lg font-bold text-gray-800 leading-none">Community</h1>
+                <span class="text-xs text-gray-500" id="display-username">กำลังโหลด...</span>
+            </div>
+        </div>
+        <div class="flex items-center gap-2">
+            <button id="admin-settings-btn" onclick="openSettingsModal()" class="hidden bg-gray-600 hover:bg-gray-700 text-white w-10 h-10 rounded-full text-sm font-bold shadow-md transition items-center justify-center">
+                <i class="fa-solid fa-gear"></i>
+            </button>
+            <button onclick="openMyPostsModal()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-full text-sm font-bold shadow-sm transition flex items-center gap-2 border border-gray-200">
+                <i class="fa-solid fa-clock-rotate-left"></i> <span class="hidden sm:inline">กระทู้ของฉัน</span>
+            </button>
+            <button onclick="openCreateModal()" class="bg-kmutnb-main hover:bg-orange-700 text-white px-4 py-2 rounded-full text-sm font-bold shadow-md transition flex items-center gap-2">
+                <i class="fa-solid fa-pen"></i> ตั้งกระทู้
+            </button>
+            <button id="admin-reports-btn" onclick="openAdminReportsModal()" class="hidden relative bg-red-100 hover:bg-red-200 text-red-600 w-10 h-10 rounded-full text-sm font-bold transition flex items-center justify-center">
+                <i class="fa-solid fa-bell"></i>
+                <span id="report-badge" class="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full hidden border-2 border-white">0</span>
+            </button>
+        </div>
+    </header>
+
+    <div class="bg-white px-4 py-3 shadow-sm z-10 shrink-0">
+        <div class="relative max-w-3xl mx-auto mb-3">
+            <input type="text" id="search-input" oninput="handleSearch()" class="w-full h-11 pl-11 pr-4 bg-gray-100 rounded-full border-0 outline-none focus:ring-2 focus:ring-kmutnb-main text-gray-700 text-sm" placeholder="ค้นหากระทู้, คำถาม, รีวิว...">
+            <div class="absolute left-4 top-3 text-gray-400"><i class="fa-solid fa-magnifying-glass"></i></div>
+        </div>
+        
+        <div class="flex gap-2 overflow-x-auto hide-scrollbar max-w-3xl mx-auto pb-1">
+            <button class="cat-chip active px-4 py-1.5 rounded-full text-sm font-medium border border-gray-200 bg-white text-gray-600 whitespace-nowrap" onclick="setCategory('all', this)">ทั้งหมด</button>
+            <button class="cat-chip px-4 py-1.5 rounded-full text-sm font-medium border border-gray-200 bg-white text-gray-600 whitespace-nowrap" onclick="setCategory('study', this)">📚 การเรียน</button>
+            <button class="cat-chip px-4 py-1.5 rounded-full text-sm font-medium border border-gray-200 bg-white text-gray-600 whitespace-nowrap" onclick="setCategory('food', this)">🍜 ของกิน</button>
+            <button class="cat-chip px-4 py-1.5 rounded-full text-sm font-medium border border-gray-200 bg-white text-gray-600 whitespace-nowrap" onclick="setCategory('friend', this)">👥 หาเพื่อน</button>
+            <button class="cat-chip px-4 py-1.5 rounded-full text-sm font-medium border border-gray-200 bg-white text-gray-600 whitespace-nowrap" onclick="setCategory('general', this)">💬 ทั่วไป</button>
+        </div>
+    </div>
+
+    <main class="flex-1 overflow-y-auto p-4 pb-20">
+        <div id="post-feed" class="max-w-3xl mx-auto space-y-4">
+            </div>
+    </main>
+
+    <div id="myPostsModal" class="modal-overlay" onclick="if(event.target == this) closeMyPostsModal()">
+        <div class="modal-content h-[85vh] !p-0 overflow-hidden relative flex flex-col">
+            <div class="flex justify-between items-center p-4 border-b bg-white shrink-0 z-10">
+                <h2 class="text-lg font-bold text-gray-800"><i class="fa-solid fa-clock-rotate-left"></i> ประวัติกระทู้ของฉัน</h2>
+                <button onclick="closeMyPostsModal()" class="text-gray-400 hover:text-red-500 w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="overflow-y-auto flex-1 p-4 bg-gray-50 hide-scrollbar" id="my-posts-list">
+                </div>
+        </div>
+    </div>
+
+    <div id="editPostModal" class="modal-overlay" onclick="if(event.target == this) closeEditPostModal()">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4 border-b pb-3 shrink-0">
+                <h2 class="text-xl font-bold text-gray-800"><i class="fa-solid fa-pen-to-square"></i> แก้ไขกระทู้ (รออนุมัติ)</h2>
+                <button onclick="closeEditPostModal()" class="text-gray-400 hover:text-red-500 w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="space-y-4 overflow-y-auto pr-2 hide-scrollbar">
+                <input type="hidden" id="edit-post-id">
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">หมวดหมู่ <span class="text-red-500">*</span></label>
+                    <select id="edit-post-category" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-kmutnb-main text-sm">
+                        <option value="study">📚 การเรียน / วิชาการ</option>
+                        <option value="food">🍜 ของกิน / รีวิวร้านอาหาร</option>
+                        <option value="friend">👥 หาเพื่อน / หอพัก</option>
+                        <option value="general">💬 พูดคุยทั่วไป</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">หัวข้อกระทู้ <span class="text-red-500">*</span></label>
+                    <input type="text" id="edit-post-title" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-kmutnb-main text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">รายละเอียด</label>
+                    <textarea id="edit-post-content" rows="4" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-kmutnb-main text-sm resize-none"></textarea>
+                </div>
+                <button onclick="submitEditPost()" class="w-full bg-kmutnb-main hover:bg-orange-600 text-white font-bold py-3 rounded-xl transition shadow-md">
+                    บันทึกการแก้ไขและส่งใหม่
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="settingsModal" class="modal-overlay" onclick="if(event.target == this) closeSettingsModal()">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4 border-b pb-3 shrink-0">
+                <h2 class="text-xl font-bold text-gray-800"><i class="fa-solid fa-gear text-gray-600"></i> ตั้งค่าระบบอนุมัติ</h2>
+                <button onclick="closeSettingsModal()" class="text-gray-400 hover:text-red-500 w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-4">
+                <p class="text-sm text-gray-600">เลือกโหมดการทำงานสำหรับผู้ใช้งานทั่วไป:</p>
+                <div>
+                    <select id="system-approval-mode" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-kmutnb-main text-sm font-medium">
+                        <option value="auto">🟢 อนุมัติอัตโนมัติ (โพสต์ได้ทุกๆ 3 ชม.)</option>
+                        <option value="manual">🔴 แอดมินอนุมัติเองทั้งหมด (กระทู้ใหม่ต้องรอตรวจ)</option>
+                    </select>
+                </div>
+                <button onclick="saveSettings()" class="w-full bg-gray-800 hover:bg-black text-white font-bold py-3 rounded-xl transition shadow-md">
+                    บันทึกการตั้งค่า
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="createModal" class="modal-overlay" onclick="if(event.target == this) closeCreateModal()">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4 border-b pb-3 shrink-0">
+                <h2 class="text-xl font-bold text-gray-800">ตั้งกระทู้ใหม่</h2>
+                <button onclick="closeCreateModal()" class="text-gray-400 hover:text-red-500 w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="space-y-4 overflow-y-auto pr-2 hide-scrollbar">
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">หมวดหมู่ <span class="text-red-500">*</span></label>
+                    <select id="post-category" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-kmutnb-main text-sm">
+                        <option value="" disabled selected>-- เลือกหมวดหมู่ --</option>
+                        <option value="study">📚 การเรียน / วิชาการ</option>
+                        <option value="food">🍜 ของกิน / รีวิวร้านอาหาร</option>
+                        <option value="friend">👥 หาเพื่อน / หอพัก</option>
+                        <option value="general">💬 พูดคุยทั่วไป</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">หัวข้อกระทู้ <span class="text-red-500">*</span></label>
+                    <input type="text" id="post-title" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-kmutnb-main text-sm" placeholder="เขียนหัวข้อที่น่าสนใจ...">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">รายละเอียด</label>
+                    <textarea id="post-content" rows="4" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-kmutnb-main text-sm resize-none" placeholder="พิมพ์เนื้อหา..."></textarea>
+                </div>
+                <button onclick="checkAndSubmitPost()" class="w-full bg-kmutnb-main hover:bg-orange-600 text-white font-bold py-3 rounded-xl transition shadow-md">
+                    โพสต์กระทู้
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="viewModal" class="modal-overlay" onclick="if(event.target == this) closeViewModal()">
+        <div class="modal-content h-[90vh] !p-0 overflow-hidden relative flex flex-col">
+            <div class="flex justify-between items-center p-4 border-b bg-white shrink-0 z-10">
+                <h2 class="text-lg font-bold text-gray-800 line-clamp-1">อ่านกระทู้</h2>
+                <button onclick="closeViewModal()" class="text-gray-400 hover:text-red-500 w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="overflow-y-auto flex-1 p-4 bg-gray-50 hide-scrollbar" id="view-post-body">
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-4 relative" id="view-main-post">
+                    </div>
+
+                <h3 class="font-bold text-gray-700 mb-3 ml-1 text-sm"><i class="fa-regular fa-comments"></i> ความคิดเห็น (<span id="view-comment-count">0</span>)</h3>
+                <div id="view-comments-list" class="space-y-3 pb-4">
+                    </div>
+            </div>
+
+            <div class="p-4 bg-white border-t shrink-0">
+                <div class="flex gap-2">
+                    <input type="hidden" id="reply-post-id">
+                    <input type="text" id="reply-content" class="flex-1 px-4 py-2.5 bg-gray-100 rounded-full border-0 outline-none focus:ring-2 focus:ring-kmutnb-main text-sm" placeholder="แสดงความคิดเห็น...">
+                    <button onclick="submitComment()" class="w-11 h-11 bg-kmutnb-main text-white rounded-full flex items-center justify-center shadow-md hover:bg-orange-600 transition shrink-0">
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://hcjquegorteantfzckpf.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_3bK3c4hh7hu37K0XxCzXVA_-5rJH89L'; 
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        const userType = sessionStorage.getItem('userType') || 'guest';
+        let currentUserName = "ผู้มาเยือน"; 
+        
+        if (userType !== 'guest' && sessionStorage.getItem('userData')) {
+            try {
+                const userData = JSON.parse(sessionStorage.getItem('userData'));
+                currentUserName = userData.full_name ? userData.full_name.split(' ')[0] : userData.username;
+            } catch (e) { console.error("Error parsing userData", e); }
+        }
+
+        let roleDisplay = userType === 'admin' ? '<span class="text-red-500 font-bold">(Admin)</span>' : '';
+        document.getElementById('display-username').innerHTML = `เข้าใช้ในชื่อ: ${currentUserName} ${roleDisplay}`;
+
+        let allPostsData = []; 
+        let myPostsData = []; // เก็บข้อมูลกระทู้ของฉัน
+        let currentCategory = 'all';
+        let currentApprovalMode = 'auto'; 
+        
+        const categoryInfo = {
+            'study': { label: 'การเรียน', color: 'text-blue-600 bg-blue-50 border-blue-100' },
+            'food': { label: 'ของกิน', color: 'text-orange-600 bg-orange-50 border-orange-100' },
+            'friend': { label: 'หาเพื่อน', color: 'text-green-600 bg-green-50 border-green-100' },
+            'general': { label: 'ทั่วไป', color: 'text-gray-600 bg-gray-100 border-gray-200' }
+        };
+
+        const badWordsList = ['สัส', 'เหี้ย', 'ควย', 'เย็ด', 'หี', 'แตด', 'มึง', 'กู', 'แม่ง', 'เงี่ยน', 'เสียว', 'ชักว่าว', 'fuck', 'shit', 'porn', 'bitch', 'asshole'];
+
+        function containsBadWords(text) {
+            if (!text) return false;
+            return badWordsList.some(word => text.includes(word));
+        }
+
+        function timeAgo(dateString) {
+            const date = new Date(dateString);
+            const diffInSeconds = Math.floor((new Date() - date) / 1000);
+            if (diffInSeconds < 60) return 'เมื่อสักครู่';
+            if (diffInSeconds < 3600) return Math.floor(diffInSeconds / 60) + ' นาทีที่แล้ว';
+            if (diffInSeconds < 86400) return Math.floor(diffInSeconds / 3600) + ' ชม.ที่แล้ว';
+            return Math.floor(diffInSeconds / 86400) + ' วันที่แล้ว';
+        }
+
+        async function fetchSystemSettings() {
+            try {
+                const { data, error } = await supabaseClient.from('community_settings').select('*').eq('setting_key', 'approval_mode').single();
+                if (data) currentApprovalMode = data.setting_value;
+            } catch (e) { console.log("โหลดค่าเริ่มต้น"); }
+
+            
+        }
+
+        async function fetchPosts() {
+            document.getElementById('post-feed').innerHTML = '<div class="text-center py-10 text-gray-500"><i class="fa-solid fa-spinner fa-spin text-2xl mb-2"></i><p>กำลังโหลด...</p></div>';
+            
+            let query = supabaseClient.from('community_posts')
+                .select('*')
+                .order('is_pinned', { ascending: false })
+                .order('created_at', { ascending: false });
+            
+            if (userType !== 'admin') query = query.eq('status', 'approved');
+
+            const { data, error } = await query;
+            if (error) return console.error(error);
+            allPostsData = data;
+            renderPosts();
+        }
+
+        function renderPosts(filterText = '') {
+            const feed = document.getElementById('post-feed');
+            feed.innerHTML = '';
+            
+            let filteredPosts = allPostsData.filter(p => {
+                const matchCat = currentCategory === 'all' || p.category === currentCategory;
+                const matchTxt = p.title.toLowerCase().includes(filterText.toLowerCase()) || (p.content && p.content.toLowerCase().includes(filterText.toLowerCase()));
+                return matchCat && matchTxt;
+            });
+
+            if (filteredPosts.length === 0) {
+                feed.innerHTML = `<div class="text-center text-gray-400 py-10"><i class="fa-regular fa-folder-open text-4xl mb-3"></i><p>ไม่พบกระทู้</p></div>`;
+                return;
+            }
+
+            filteredPosts.forEach(post => {
+                const cat = categoryInfo[post.category] || categoryInfo['general'];
+                const isPending = post.status === 'pending';
+                const isPinned = post.is_pinned;
+                
+                let cardStyle = 'border-gray-100 hover:border-kmutnb-light bg-white';
+                if (isPinned) cardStyle = 'border-orange-300 bg-orange-50 shadow-md';
+                if (isPending) cardStyle = 'border-yellow-400 bg-yellow-50 opacity-90';
+
+                const badgePending = isPending ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-yellow-500 text-white ml-2">รออนุมัติ</span>` : '';
+                const badgePinned = isPinned ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-kmutnb-main text-white ml-1"><i class="fa-solid fa-thumbtack"></i> ปักหมุด</span>` : '';
+
+                let adminControls = '';
+                let reportControl = ''; // เพิ่มตัวแปรมารองรับปุ่มรายงาน
+                if (userType === 'admin') {
+                    const btnApprove = isPending ? `<button onclick="approvePost(event, ${post.id})" class="text-green-600 bg-green-100 px-2 py-1 rounded text-[10px] font-bold hover:bg-green-200">อนุมัติ</button>` : '';
+                    const btnPinText = isPinned ? 'เลิกปักหมุด' : 'ปักหมุด';
+                    const btnPinStyle = isPinned ? 'text-gray-600 bg-gray-200 hover:bg-gray-300' : 'text-blue-600 bg-blue-100 hover:bg-blue-200';
+                    const btnPin = `<button onclick="togglePinPost(event, ${post.id}, ${isPinned})" class="${btnPinStyle} px-2 py-1 rounded text-[10px] font-bold transition"><i class="fa-solid fa-thumbtack"></i> ${btnPinText}</button>`;
+                    
+                    adminControls = `
+                        <div class="absolute top-3 right-3 flex gap-2">
+                            ${btnPin}
+                            ${btnApprove}
+                            <button onclick="adminDeletePost(event, ${post.id})" class="text-red-500 bg-red-100 px-2 py-1 rounded text-[10px] font-bold hover:bg-red-200"><i class="fa-solid fa-trash"></i> ลบ</button>
+                        </div>
+                    `;
+                } else {
+                    // ถ้าไม่ใช่แอดมิน และเป็นกระทู้ที่ถูกอนุมัติแล้ว ให้แสดงปุ่มรายงาน
+                    if (!isPending) {
+                        reportControl = `
+                            <div class="absolute top-3 right-3 flex gap-2">
+                                <button onclick="reportPost(event, ${post.id})" class="text-gray-400 bg-gray-50 border border-gray-100 px-2 py-1 rounded text-[10px] font-bold hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition">
+                                    <i class="fa-solid fa-flag"></i> รายงาน
+                                </button>
+                            </div>
+                        `;
+                    }
+                }
+
+                feed.innerHTML += `
+                    <div class="p-4 rounded-xl shadow-sm border transition cursor-pointer relative ${cardStyle}" onclick="openViewModal(${post.id})">
+                        ${adminControls}
+                        ${reportControl} <div class="flex items-center gap-2 mb-2 pr-32">
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-md border ${cat.color}">${cat.label}</span>
+                            <span class="text-xs text-gray-400"><i class="fa-regular fa-clock"></i> ${timeAgo(post.created_at)}</span>
+                            ${badgePinned}
+                            ${badgePending}
+                        </div>
+                        <h3 class="font-bold text-gray-800 text-[15px] mb-1 line-clamp-2 pr-16">${post.title}</h3>
+                        <p class="text-sm text-gray-500 line-clamp-2 mb-3">${post.content || ''}</p>
+                        <div class="flex items-center justify-between text-xs text-gray-400 border-t border-gray-100 pt-3">
+                            <div class="flex items-center gap-1.5 font-medium">
+                                <img src="https://ui-avatars.com/api/?name=${post.author}&background=random&color=fff" class="w-5 h-5 rounded-full object-cover">
+                                ${post.author}
+                            </div>
+                            <div><i class="fa-regular fa-comment-dots text-gray-400"></i> ${post.comments || 0} คอมเมนต์</div>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        // ==========================================
+        // 🚨 ระบบจัดการรายงาน (สำหรับ Admin)
+        // ==========================================
+
+        // 1. ฟังก์ชันเช็คและอัปเดตตัวเลขแจ้งเตือน
+        async function fetchReportBadge() {
+            if (userType !== 'admin') return;
+
+            // เช็คปุ่มและแสดงปุ่มสำหรับแอดมิน (เอาไว้ใส่ตอนหน้าเว็บโหลด)
+            document.getElementById('admin-settings-btn').style.display = 'flex';
+            document.getElementById('admin-reports-btn').style.display = 'flex';
+
+            const { count, error } = await supabaseClient
+                .from('community_reports')
+                .select('*', { count: 'exact', head: true })
+                .eq('status', 'pending');
+
+            const badge = document.getElementById('report-badge');
+            if (count > 0) {
+                badge.innerText = count;
+                badge.style.display = 'flex';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+
+        // เรียกใช้ฟังก์ชันนี้ทันทีตอนเปิดหน้าเว็บ เพื่อให้ตัวเลขแจ้งเตือนขึ้น
+        fetchReportBadge(); 
+
+        // 2. ฟังก์ชันเปิด/ปิด Modal หน้าจัดการรายงาน
+        function openAdminReportsModal() {
+            document.getElementById('adminReportsModal').style.display = 'flex';
+            loadAdminReports();
+        }
+
+        function closeAdminReportsModal() {
+            document.getElementById('adminReportsModal').style.display = 'none';
+        }
+
+        // 3. ฟังก์ชันดึงข้อมูลรายงานมาแสดง
+        async function loadAdminReports() {
+            const list = document.getElementById('admin-reports-list');
+            list.innerHTML = '<div class="text-center py-10 text-gray-500"><i class="fa-solid fa-spinner fa-spin text-2xl mb-2"></i><p>กำลังโหลดข้อมูล...</p></div>';
+
+            // ดึงรายงาน พร้อมโยงข้อมูลกระทู้ (Title, Content) มาด้วย (Join table)
+            const { data, error } = await supabaseClient
+                .from('community_reports')
+                .select(`
+                    id, reporter, reason, created_at, post_id,
+                    community_posts ( title, content, author )
+                `)
+                .eq('status', 'pending')
+                .order('created_at', { ascending: false });
+
+            if (error) return console.error(error);
+
+            if (!data || data.length === 0) {
+                list.innerHTML = `<div class="text-center text-gray-400 py-10"><i class="fa-regular fa-circle-check text-4xl mb-3"></i><p>ไม่มีรายงานที่รอการตรวจสอบ</p></div>`;
+                fetchReportBadge(); // อัปเดตตัวเลขกระดิ่ง
+                return;
+            }
+
+            list.innerHTML = '';
+            const reasonLabels = {
+                'spam': 'สแปม / โฆษณาขยะ',
+                'inappropriate': 'เนื้อหาไม่เหมาะสม',
+                'harassment': 'คุกคาม / กลั่นแกล้ง',
+                'fake_news': 'ข้อมูลเท็จ',
+                'other': 'อื่นๆ'
+            };
+
+            data.forEach(report => {
+                const post = report.community_posts;
+                if (!post) return; // ถ้ากระทู้โดนลบไปแล้วข้ามไปเลย
+
+                list.innerHTML += `
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-red-200 mb-3">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-[11px] font-bold px-2 py-1 rounded bg-red-50 text-red-600 border border-red-100">
+                                <i class="fa-solid fa-triangle-exclamation"></i> ${reasonLabels[report.reason] || report.reason}
+                            </span>
+                            <span class="text-[10px] text-gray-400">${timeAgo(report.created_at)}</span>
+                        </div>
+                        <p class="text-xs text-gray-500 mb-2">ผู้รายงาน: <span class="font-bold text-gray-700">${report.reporter}</span></p>
+                        
+                        <div class="bg-gray-50 p-3 rounded-lg border border-gray-100 mb-3">
+                            <h4 class="text-sm font-bold text-gray-800 mb-1">กระทู้: ${post.title}</h4>
+                            <p class="text-xs text-gray-500 line-clamp-2">เนื้อหา: ${post.content || 'ไม่มีเนื้อหา'}</p>
+                            <p class="text-[10px] text-gray-400 mt-2">โดย: ${post.author}</p>
+                        </div>
+
+                        <div class="flex gap-2 justify-end">
+                            <button onclick="resolveReport(${report.id})" class="bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 px-3 py-1.5 rounded-lg text-xs font-bold transition">
+                                เพิกเฉย (ปลอดภัย)
+                            </button>
+                            <button onclick="adminDeleteReportedPost(${report.post_id}, ${report.id})" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-sm">
+                                <i class="fa-solid fa-trash"></i> ลบกระทู้นี้
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // 4. แอดมินจัดการ: เพิกเฉยต่อรายงาน (ลบออกจากคิว)
+        async function resolveReport(reportId) {
+            await supabaseClient.from('community_reports').update({ status: 'resolved' }).eq('id', reportId);
+            loadAdminReports(); // โหลดรายการใหม่
+            fetchReportBadge(); // อัปเดตตัวเลขกระดิ่ง
+        }
+
+        // 5. แอดมินจัดการ: ลบกระทู้ทิ้ง
+        async function adminDeleteReportedPost(postId, reportId) {
+            Swal.fire({
+                title: 'ลบกระทู้นี้?',
+                text: "กระทู้และคอมเมนต์ทั้งหมดจะถูกลบถาวร!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#6B7280',
+                confirmButtonText: 'ลบทิ้งเลย',
+                cancelButtonText: 'ยกเลิก'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    // ลบกระทู้หลัก (ถ้าทำ Cascade ไว้ใน Supabase พวก Report และ Comment จะหายตามอัตโนมัติ)
+                    await supabaseClient.from('community_posts').delete().eq('id', postId);
+                    
+                    Swal.fire({ icon: 'success', title: 'ลบกระทู้เรียบร้อย', showConfirmButton: false, timer: 1500 });
+                    loadAdminReports(); // รีเฟรชหน้าต่างรายงาน
+                    fetchReportBadge(); // อัปเดตแจ้งเตือน
+                    fetchPosts();       // รีเฟรชหน้าจอหลัก
+                }
+            });
+        }
+        // ==========================================
+        // 🟡 ระบบจัดการ "กระทู้ของฉัน" (My Posts)
+        // ==========================================
+        function openMyPostsModal() {
+            if (userType === 'guest') {
+                return Swal.fire('ไม่สามารถใช้งานได้', 'กรุณาเข้าสู่ระบบเพื่อดูประวัติกระทู้', 'warning');
+            }
+            document.getElementById('myPostsModal').style.display = 'flex';
+            fetchMyPosts();
+        }
+
+        function closeMyPostsModal() {
+            document.getElementById('myPostsModal').style.display = 'none';
+        }
+
+        async function fetchMyPosts() {
+            const list = document.getElementById('my-posts-list');
+            list.innerHTML = '<div class="text-center py-10 text-gray-500"><i class="fa-solid fa-spinner fa-spin text-2xl mb-2"></i><p>กำลังโหลด...</p></div>';
+
+            const { data, error } = await supabaseClient.from('community_posts')
+                .select('*')
+                .eq('author', currentUserName)
+                .order('created_at', { ascending: false });
+
+            if (error) return console.error(error);
+            myPostsData = data;
+            
+            if (myPostsData.length === 0) {
+                list.innerHTML = `<div class="text-center text-gray-400 py-10"><i class="fa-regular fa-folder-open text-4xl mb-3"></i><p>คุณยังไม่มีกระทู้</p></div>`;
+                return;
+            }
+
+            list.innerHTML = '';
+            myPostsData.forEach(post => {
+                const cat = categoryInfo[post.category] || categoryInfo['general'];
+                const isPending = post.status === 'pending';
+                
+                let statusBadge = `<span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-green-500 text-white">อนุมัติแล้ว</span>`;
+                let editBtn = '';
+
+                // หากสถานะรออนุมัติ จะแสดงปุ่มแก้ไข
+                if (isPending) {
+                    statusBadge = `<span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-yellow-500 text-white">รออนุมัติ</span>`;
+                    editBtn = `<button onclick="openEditPostModal(${post.id})" class="text-blue-500 bg-blue-50 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-100 transition"><i class="fa-solid fa-pen"></i> แก้ไข</button>`;
+                }
+
+                list.innerHTML += `
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-3 relative">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-md border ${cat.color}">${cat.label}</span>
+                            ${statusBadge}
+                            <span class="text-xs text-gray-400 ml-auto">${timeAgo(post.created_at)}</span>
+                        </div>
+                        <h3 class="font-bold text-gray-800 text-sm mb-1">${post.title}</h3>
+                        <p class="text-xs text-gray-500 line-clamp-2 mb-3">${post.content || ''}</p>
+                        
+                        <div class="flex justify-end gap-2 border-t border-gray-50 pt-2">
+                            ${editBtn}
+                            <button onclick="userDeletePost(${post.id})" class="text-red-500 bg-red-50 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-100 transition"><i class="fa-solid fa-trash"></i> ลบกระทู้</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // ฟังก์ชันให้ผู้ใช้ลบกระทู้ตัวเอง
+        async function userDeletePost(postId) {
+            Swal.fire({
+                title: 'ยืนยันการลบ?',
+                text: "ต้องการลบกระทู้นี้ใช่หรือไม่?",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'ลบกระทู้',
+                cancelButtonText: 'ยกเลิก'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    await supabaseClient.from('community_posts').delete().eq('id', postId).eq('author', currentUserName);
+                    Swal.fire({ icon: 'success', title: 'ลบกระทู้แล้ว', timer: 1000, showConfirmButton: false });
+                    fetchMyPosts(); // อัปเดตลิสต์ของฉัน
+                    fetchPosts();   // อัปเดตหน้าหลัก
+                }
+            });
+        }
+        
+        // ==========================================
+        // 🔴 ระบบรายงานกระทู้ (Report)
+        // ==========================================
+        async function reportPost(event, postId) {
+            event.stopPropagation(); // ป้องกันไม่ให้คลิกปุ่มแล้วเปิดอ่านกระทู้ซ้อนขึ้นมา
+
+            if (userType === 'guest') {
+                return Swal.fire('ไม่สามารถรายงานได้', 'กรุณาเข้าสู่ระบบเพื่อรายงานกระทู้', 'warning');
+            }
+
+            // แสดง Pop-up ให้เลือกเหตุผล
+            const { value: reason } = await Swal.fire({
+                title: 'รายงานกระทู้',
+                text: 'โปรดเลือกเหตุผลที่คุณต้องการรายงานกระทู้นี้ให้แอดมินทราบ',
+                icon: 'warning',
+                input: 'select',
+                inputOptions: {
+                    'spam': 'สแปม / โฆษณาขยะ',
+                    'inappropriate': 'เนื้อหาไม่เหมาะสม / ลามกอนาจาร / หยาบคาย',
+                    'harassment': 'คุกคาม / กลั่นแกล้ง / สร้างความเกลียดชัง',
+                    'fake_news': 'ข้อมูลเท็จ / หลอกลวง',
+                    'other': 'อื่นๆ'
+                },
+                inputPlaceholder: 'เลือกเหตุผลการรายงาน...',
+                showCancelButton: true,
+                confirmButtonColor: '#EE3F0B',
+                cancelButtonColor: '#6B7280',
+                confirmButtonText: 'ส่งรายงาน',
+                cancelButtonText: 'ยกเลิก',
+                inputValidator: (value) => {
+                    return new Promise((resolve) => {
+                        if (value) {
+                            resolve();
+                        } else {
+                            resolve('กรุณาเลือกเหตุผลที่ต้องการรายงาน');
+                        }
+                    });
+                }
+            });
+
+            if (reason) {
+                Swal.fire({ title: 'กำลังส่งรายงาน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+                // สร้างข้อมูลเพื่อส่งไปยัง Database Table: 'community_reports'
+                const { error } = await supabaseClient.from('community_reports').insert([
+                    { 
+                        post_id: postId, 
+                        reporter: currentUserName, 
+                        reason: reason,
+                        status: 'pending' // สถานะรอแอดมินตรวจสอบ
+                    }
+                ]);
+
+                if (error) {
+                    Swal.fire('เกิดข้อผิดพลาด', error.message, 'error');
+                } else {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'ส่งรายงานสำเร็จ',
+                        text: 'แอดมินได้รับรายงานแล้วและจะดำเนินการตรวจสอบต่อไป',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                }
+            }
+        }
+        // เปิดหน้าแก้ไขกระทู้
+        function openEditPostModal(postId) {
+            const post = myPostsData.find(p => p.id === postId);
+            if (!post) return;
+
+            document.getElementById('edit-post-id').value = post.id;
+            document.getElementById('edit-post-category').value = post.category;
+            document.getElementById('edit-post-title').value = post.title;
+            document.getElementById('edit-post-content').value = post.content || '';
+            
+            document.getElementById('editPostModal').style.display = 'flex';
+        }
+
+        function closeEditPostModal() {
+            document.getElementById('editPostModal').style.display = 'none';
+        }
+
+        // บันทึกการแก้ไข
+        async function submitEditPost() {
+            const postId = document.getElementById('edit-post-id').value;
+            const cat = document.getElementById('edit-post-category').value;
+            const title = document.getElementById('edit-post-title').value;
+            const content = document.getElementById('edit-post-content').value;
+
+            if (!cat || !title) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาเลือกหมวดหมู่และตั้งหัวข้อ', 'error');
+
+            if (containsBadWords(title) || containsBadWords(content)) {
+                return Swal.fire({
+                    icon: 'warning',
+                    title: 'พบคำไม่เหมาะสม!',
+                    text: 'กรุณาแก้ไขเนื้อหาหรือหัวข้อกระทู้ของคุณ เนื่องจากมีคำที่ไม่เหมาะสม',
+                    confirmButtonColor: '#EE3F0B'
+                });
+            }
+
+            Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+            const { error } = await supabaseClient.from('community_posts')
+                .update({ title: title, content: content, category: cat, status: 'pending' }) // ย้ำสถานะเป็น pending อีกครั้ง
+                .eq('id', postId).eq('author', currentUserName);
+
+            if (error) {
+                Swal.fire('ผิดพลาด', error.message, 'error');
+            } else {
+                closeEditPostModal();
+                Swal.fire({ icon: 'success', title: 'ส่งกระทู้ใหม่แล้ว', text: 'แอดมินจะทำการพิจารณาอีกครั้ง', timer: 1500, showConfirmButton: false });
+                fetchMyPosts(); // อัปเดตลิสต์ของฉัน
+                fetchPosts();   // อัปเดตหน้าหลัก
+            }
+        }
+        // ==========================================
+
+        function setCategory(cat, btn) {
+            currentCategory = cat;
+            document.querySelectorAll('.cat-chip').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            handleSearch();
+        }
+        function handleSearch() { renderPosts(document.getElementById('search-input').value); }
+
+        function openCreateModal() { document.getElementById('createModal').style.display = 'flex'; }
+        function closeCreateModal() { 
+            document.getElementById('createModal').style.display = 'none'; 
+            document.getElementById('post-category').value = '';
+            document.getElementById('post-title').value = '';
+            document.getElementById('post-content').value = '';
+        }
+
+        function formatWaitTime(ms) {
+            const totalMins = Math.floor(ms / 60000);
+            const hrs = Math.floor(totalMins / 60);
+            const mins = totalMins % 60;
+            if (hrs > 0) return `${hrs} ชั่วโมง ${mins} นาที`;
+            return `${mins} นาที`;
+        }
+
+        async function checkAndSubmitPost() {
+            const cat = document.getElementById('post-category').value;
+            const title = document.getElementById('post-title').value;
+            const content = document.getElementById('post-content').value;
+
+            if (!cat || !title) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาเลือกหมวดหมู่และตั้งหัวข้อ', 'error');
+
+            if (containsBadWords(title) || containsBadWords(content)) {
+                return Swal.fire({
+                    icon: 'warning',
+                    title: 'พบคำไม่เหมาะสม!',
+                    text: 'กรุณาแก้ไขเนื้อหาหรือหัวข้อกระทู้ของคุณ เนื่องจากมีคำที่ไม่เหมาะสม (คำหยาบ / 18+)',
+                    confirmButtonColor: '#EE3F0B'
+                });
+            }
+
+            if (userType !== 'admin') {
+                if (currentApprovalMode === 'manual') {
+                    return Swal.fire({
+                        title: 'ส่งให้แอดมินตรวจสอบ',
+                        text: 'ขณะนี้ระบบเปิดโหมดจำกัดการโพสต์ กระทู้ของคุณจะถูกแสดงเมื่อแอดมินอนุมัติแล้วเท่านั้น',
+                        icon: 'info',
+                        showCancelButton: true,
+                        confirmButtonColor: '#EE3F0B',
+                        cancelButtonColor: '#6B7280',
+                        confirmButtonText: 'ตกลงส่งกระทู้',
+                        cancelButtonText: 'ยกเลิก'
+                    }).then((result) => {
+                        if (result.isConfirmed) executeSubmit(cat, title, content, 'pending', 'กระทู้ถูกส่งให้แอดมินพิจารณาแล้ว');
+                    });
+                }
+
+                Swal.fire({ title: 'กำลังตรวจสอบสิทธิ์...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+                const { data: lastPost } = await supabaseClient
+                    .from('community_posts')
+                    .select('created_at')
+                    .eq('author', currentUserName)
+                    .order('created_at', { ascending: false })
+                    .limit(1);
+                
+                if (lastPost && lastPost.length > 0) {
+                    const lastTime = new Date(lastPost[0].created_at).getTime();
+                    const now = new Date().getTime();
+                    const cooldownMs = 3 * 60 * 60 * 1000;
+                    const timePassed = now - lastTime;
+
+                    if (timePassed < cooldownMs) {
+                        const timeLeft = cooldownMs - timePassed;
+                        Swal.fire({
+                            title: '⏳ รอสักครู่...',
+                            html: `คุณสามารถตั้งกระทู้ได้ 1 ครั้ง ในทุกๆ 3 ชั่วโมง<br>กรุณารออีก: <b class="text-red-500">${formatWaitTime(timeLeft)}</b>`,
+                            icon: 'warning',
+                            showCancelButton: true,
+                            confirmButtonColor: '#EE3F0B',
+                            cancelButtonColor: '#6B7280',
+                            confirmButtonText: '<i class="fa-solid fa-flag"></i> ยื่นอุทธรณ์ด่วน',
+                            cancelButtonText: 'ปิด'
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                executeSubmit(cat, title, content, 'pending', 'ส่งคำขออุทธรณ์แล้ว แอดมินจะพิจารณาในไม่ช้า');
+                            }
+                        });
+                        return;
+                    }
+                }
+            }
+            
+            executeSubmit(cat, title, content, 'approved', 'โพสต์กระทู้สำเร็จ');
+        }
+
+        async function executeSubmit(cat, title, content, statusToSave, successMessage) {
+            closeCreateModal();
+            Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+            const { error } = await supabaseClient
+                .from('community_posts')
+                .insert([{ title, content, category: cat, author: currentUserName, status: statusToSave }]);
+            
+            if (error) {
+                Swal.fire('ผิดพลาด', error.message, 'error');
+            } else {
+                const iconType = statusToSave === 'pending' ? 'info' : 'success';
+                Swal.fire({ icon: iconType, title: successMessage, timer: 2000, showConfirmButton: false });
+                fetchPosts();
+            }
+        }
+
+        // ------------------ ระบบจัดการของ Admin ------------------
+        function openSettingsModal() { document.getElementById('settingsModal').style.display = 'flex'; }
+        function closeSettingsModal() { document.getElementById('settingsModal').style.display = 'none'; }
+        
+        async function saveSettings() {
+            const mode = document.getElementById('system-approval-mode').value;
+            Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+            const { error } = await supabaseClient
+                .from('community_settings')
+                .upsert({ setting_key: 'approval_mode', setting_value: mode });
+                
+            if (error) {
+                Swal.fire('ผิดพลาด', error.message, 'error');
+            } else {
+                currentApprovalMode = mode;
+                closeSettingsModal();
+                Swal.fire({ icon: 'success', title: 'บันทึกการตั้งค่าแล้ว', timer: 1500, showConfirmButton: false });
+            }
+        }
+
+        async function adminDeletePost(event, postId) {
+            event.stopPropagation();
+            Swal.fire({
+                title: 'ยืนยันการลบ?',
+                text: "ลบแล้วจะไม่สามารถกู้คืนได้!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'ลบเลย',
+                cancelButtonText: 'ยกเลิก'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    await supabaseClient.from('community_posts').delete().eq('id', postId);
+                    fetchPosts();
+                }
+            });
+        }
+
+        async function approvePost(event, postId) {
+            event.stopPropagation();
+            await supabaseClient.from('community_posts').update({ status: 'approved' }).eq('id', postId);
+            Swal.fire({ icon: 'success', title: 'อนุมัติโพสต์แล้ว', timer: 1000, showConfirmButton: false });
+            fetchPosts();
+        }
+
+        async function togglePinPost(event, postId, currentPinStatus) {
+            event.stopPropagation();
+            const newStatus = !currentPinStatus; 
+            await supabaseClient.from('community_posts').update({ is_pinned: newStatus }).eq('id', postId);
+            fetchPosts(); 
+        }
+        // -----------------------------------------------------
+
+        async function openViewModal(postId) {
+            const post = allPostsData.find(p => p.id === postId);
+            if(!post) return;
+
+            document.getElementById('viewModal').style.display = 'flex';
+            document.getElementById('reply-post-id').value = postId;
+            document.getElementById('reply-content').value = '';
+            
+            const cat = categoryInfo[post.category] || categoryInfo['general'];
+            const badgePinned = post.is_pinned ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-kmutnb-main text-white inline-block mb-3 ml-2"><i class="fa-solid fa-thumbtack"></i> ปักหมุด</span>` : '';
+
+            document.getElementById('view-main-post').innerHTML = `
+                <div class="flex items-center gap-2 mb-3">
+                    <img src="https://ui-avatars.com/api/?name=${post.author}&background=random&color=fff" class="w-8 h-8 rounded-full">
+                    <div>
+                        <div class="text-sm font-bold text-gray-800">${post.author}</div>
+                        <div class="text-[10px] text-gray-400"><i class="fa-regular fa-clock"></i> ${timeAgo(post.created_at)}</div>
+                    </div>
+                </div>
+                <h3 class="font-bold text-lg text-gray-800 mb-2 leading-tight">${post.title}</h3>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-md border inline-block mb-3 ${cat.color}">${cat.label}</span>
+                ${badgePinned}
+                <p class="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">${post.content || ''}</p>
+            `;
+
+            fetchComments(postId);
+        }
+
+        function closeViewModal() { document.getElementById('viewModal').style.display = 'none'; }
+
+        async function fetchComments(postId) {
+            const list = document.getElementById('view-comments-list');
+            list.innerHTML = '<div class="text-center py-4 text-gray-400 text-sm"><i class="fa-solid fa-circle-notch fa-spin"></i> กำลังโหลด...</div>';
+
+            const { data, error } = await supabaseClient.from('community_comments').select('*').eq('post_id', postId).order('created_at', { ascending: true });
+            if (error) return console.error(error);
+            document.getElementById('view-comment-count').innerText = data.length;
+
+            if (data.length === 0) {
+                list.innerHTML = `<div class="text-center py-6 text-gray-400 text-sm bg-white rounded-xl border border-gray-100 shadow-sm">ยังไม่มีความคิดเห็น เริ่มพูดคุยคนแรกเลย!</div>`;
+                return;
+            }
+
+            list.innerHTML = '';
+            data.forEach(comment => {
+                let adminDelComment = userType === 'admin' ? `<button onclick="deleteComment(${comment.id}, ${postId})" class="text-red-400 hover:text-red-600 text-[10px] ml-auto"><i class="fa-solid fa-trash"></i></button>` : '';
+                list.innerHTML += `
+                    <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex gap-3">
+                        <img src="https://ui-avatars.com/api/?name=${comment.author}&background=random&color=fff" class="w-8 h-8 rounded-full shrink-0">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-sm font-bold text-gray-800">${comment.author}</span>
+                                <span class="text-[10px] text-gray-400">${timeAgo(comment.created_at)}</span>
+                                ${adminDelComment}
+                            </div>
+                            <p class="text-sm text-gray-600 whitespace-pre-wrap">${comment.content}</p>
+                        </div>
+                    </div>`;
+            });
+
+            setTimeout(() => {
+                const body = document.getElementById('view-post-body');
+                body.scrollTop = body.scrollHeight;
+            }, 100);
+        }
+
+        async function submitComment() {
+            const postId = document.getElementById('reply-post-id').value;
+            const content = document.getElementById('reply-content').value.trim();
+            if (!content) return;
+
+            if (containsBadWords(content)) {
+                return Swal.fire({
+                    icon: 'warning',
+                    title: 'คอมเมนต์ไม่เหมาะสม!',
+                    text: 'กรุณาใช้ถ้อยคำที่สุภาพในการแสดงความคิดเห็น',
+                    confirmButtonColor: '#EE3F0B'
+                });
+            }
+
+            const inputField = document.getElementById('reply-content');
+            inputField.disabled = true;
+
+            const { error } = await supabaseClient.from('community_comments').insert([{ post_id: postId, content: content, author: currentUserName }]);
+            if (error) {
+                Swal.fire('ผิดพลาด', error.message, 'error');
+                inputField.disabled = false; return;
+            }
+
+            const post = allPostsData.find(p => p.id == postId);
+            const newCount = (post.comments || 0) + 1;
+            await supabaseClient.from('community_posts').update({ comments: newCount }).eq('id', postId);
+            
+            post.comments = newCount; 
+            inputField.value = '';
+            inputField.disabled = false;
+            fetchComments(postId);
+            handleSearch();
+        }
+
+        async function deleteComment(commentId, postId) {
+            if(confirm('ลบคอมเมนต์นี้?')) {
+                await supabaseClient.from('community_comments').delete().eq('id', commentId);
+                const post = allPostsData.find(p => p.id == postId);
+                const newCount = Math.max(0, (post.comments || 0) - 1);
+                await supabaseClient.from('community_posts').update({ comments: newCount }).eq('id', postId);
+                post.comments = newCount;
+                fetchComments(postId);
+                handleSearch();
+            }
+        }
+
+        document.getElementById('reply-content').addEventListener("keypress", function(event) {
+            if (event.key === "Enter") { event.preventDefault(); submitComment(); }
+        });
+
+        // ดึงการตั้งค่าแล้วค่อยดึงโพสต์
+        fetchSystemSettings().then(() => fetchPosts());
+    </script>
+    <div id="adminReportsModal" class="modal-overlay" onclick="if(event.target == this) closeAdminReportsModal()">
+        <div class="modal-content h-[85vh] !p-0 overflow-hidden relative flex flex-col">
+            <div class="flex justify-between items-center p-4 border-b bg-white shrink-0 z-10">
+                <h2 class="text-lg font-bold text-gray-800"><i class="fa-solid fa-flag text-red-500"></i> จัดการคำร้องเรียน</h2>
+                <button onclick="closeAdminReportsModal()" class="text-gray-400 hover:text-red-500 w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="overflow-y-auto flex-1 p-4 bg-gray-50 hide-scrollbar" id="admin-reports-list">
+                </div>
+        </div>
+    </div>
+</body>
+</html>
