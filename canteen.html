@@ -18,12 +18,15 @@
         tailwind.config = {
             theme: {
                 extend: {
+                    // ส่วนของ tailwind.config
                     colors: {
                         kmutnb: { main: '#EE3F0B', light: '#FF6B42' },
                         savory: '#EF4444',   
                         dessert: '#EC4899',  
                         drink: '#3B82F6',    
-                        convenience : '#10B981'      
+                        convenience: '#10B981',
+                        stationery: '#8B5CF6', // สีม่วงสำหรับเครื่องเขียน
+                        copy: '#6B7280'        // สีเทาเข้มสำหรับถ่ายเอกสาร
                     },
                     fontFamily: { sans: ['Prompt', 'sans-serif'] }
                 }
@@ -60,6 +63,11 @@
         .pin-drink:hover { background-color: #3B82F6; }
         .pin-convenience { border-color: #10B981; color: #10B981; }
         .pin-convenience:hover { background-color: #10B981; }
+        /* เพิ่มต่อจาก .pin-convenience */
+        .pin-stationery { border-color: #8B5CF6; color: #8B5CF6; }
+        .pin-stationery:hover { background-color: #8B5CF6; }
+        .pin-copy { border-color: #6B7280; color: #6B7280; }
+        .pin-copy:hover { background-color: #6B7280; }
         .custom-pin i { transition: color 0.2s; }
         .custom-pin:hover i { color: white !important; }
 
@@ -123,6 +131,8 @@
                 <button onclick="setFilter('dessert')" id="btn-dessert" class="filter-btn bg-white text-gray-600 px-3 py-1.5 rounded-full text-xs font-medium shadow whitespace-nowrap border border-gray-200 hover:bg-pink-50 hover:text-pink-500 transition cursor-pointer"><i class="fa-solid fa-ice-cream"></i> ของหวาน</button>
                 <button onclick="setFilter('drink')" id="btn-drink" class="filter-btn bg-white text-gray-600 px-3 py-1.5 rounded-full text-xs font-medium shadow whitespace-nowrap border border-gray-200 hover:bg-blue-50 hover:text-blue-500 transition cursor-pointer"><i class="fa-solid fa-glass-water"></i> เครื่องดื่ม</button>
                 <button onclick="setFilter('convenience')" id="btn-convenience" class="filter-btn bg-white text-gray-600 px-3 py-1.5 rounded-full text-xs font-medium shadow whitespace-nowrap border border-gray-200 hover:bg-green-50 hover:text-green-500 transition cursor-pointer"><i class="fa-solid fa-store"></i> สะดวกซื้อ</button>
+                <button onclick="setFilter('stationery')" id="btn-stationery" class="filter-btn bg-white text-gray-600 px-3 py-1.5 rounded-full text-xs font-medium shadow whitespace-nowrap border border-gray-200 hover:bg-purple-50 hover:text-purple-500 transition cursor-pointer"><i class="fa-solid fa-pen-nib"></i> เครื่องเขียน</button>
+                <button onclick="setFilter('copy')" id="btn-copy" class="filter-btn bg-white text-gray-600 px-3 py-1.5 rounded-full text-xs font-medium shadow whitespace-nowrap border border-gray-200 hover:bg-gray-100 hover:text-gray-800 transition cursor-pointer"><i class="fa-solid fa-print"></i> ถ่ายเอกสาร</button>
             </div>
         </div>
 
@@ -317,7 +327,9 @@
                     savory: { icon: 'fa-utensils', class: 'pin-savory', label: 'อาหารคาว', color: 'text-red-500', hex: '#EF4444' },
                     dessert: { icon: 'fa-ice-cream', class: 'pin-dessert', label: 'ของหวาน', color: 'text-pink-500', hex: '#EC4899' },
                     drink: { icon: 'fa-glass-water', class: 'pin-drink', label: 'เครื่องดื่ม', color: 'text-blue-500', hex: '#3B82F6' },
-                    convenience: { icon: 'fa-store', class: 'pin-convenience', label: 'สะดวกซื้อ', color: 'text-green-500', hex: '#10B981' }
+                    convenience: { icon: 'fa-store', class: 'pin-convenience', label: 'สะดวกซื้อ', color: 'text-green-500', hex: '#10B981' },
+                    stationery: { icon: 'fa-pen-nib', class: 'pin-stationery', label: 'เครื่องเขียน', color: 'text-purple-500', hex: '#8B5CF6' },
+                    copy: { icon: 'fa-print', class: 'pin-copy', label: 'ถ่ายเอกสาร', color: 'text-gray-600', hex: '#6B7280' }
                 }[item.type] || { icon: 'fa-location-dot', class: 'pin-savory', label: 'ทั่วไป', color: 'text-gray-500', hex: '#6B7280' };
 
                 const customIcon = L.divIcon({
@@ -422,6 +434,8 @@
                     <option value="dessert" ${selected==='dessert'?'selected':''}>🍦 ร้านของหวาน</option>
                     <option value="drink" ${selected==='drink'?'selected':''}>🥤 ร้านเครื่องดื่ม</option>
                     <option value="convenience" ${selected==='convenience'?'selected':''}>🏪 ร้านสะดวกซื้อ</option>
+                    <option value="stationery" ${selected==='stationery'?'selected':''}>✏️ ร้านเครื่องเขียน</option>
+                    <option value="copy" ${selected==='copy'?'selected':''}>🖨️ ร้านถ่ายเอกสาร</option>
                 </select>
             `;
         }
