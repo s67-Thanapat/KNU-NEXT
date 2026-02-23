@@ -434,9 +434,19 @@
             // ใช้ sessionStorage แทน เพื่อให้รีเซ็ตใหม่ทุกครั้งที่ปิดเว็บแล้วเข้าใหม่
             const hasDismissedPopup = sessionStorage.getItem('hideInstallPopup');
 
-            // ฟังก์ชันเช็คอุปกรณ์และเบราว์เซอร์
+            // ฟังก์ชันเช็คอุปกรณ์และเบราว์เซอร์ (อัปเกรดให้รองรับ iPadOS)
             const isLineBrowser = () => window.navigator.userAgent.toLowerCase().indexOf("line") > -1;
-            const isIos = () => /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
+            
+            const isIos = () => {
+                const ua = window.navigator.userAgent.toLowerCase();
+                // 1. เช็ค iOS ปกติ (iPhone, iPod, iPad รุ่นเก่า)
+                const isMobileApple = /iphone|ipad|ipod/.test(ua);
+                // 2. เช็ค iPadOS รุ่นใหม่ (ที่ Safari หลอกว่าเป็น Mac แต่หน้าจอทัชสกรีนได้)
+                const isMacWithTouch = ua.includes('macintosh') && navigator.maxTouchPoints > 1; 
+                
+                return isMobileApple || isMacWithTouch;
+            };
+
             const isInStandaloneMode = () => ('standalone' in window.navigator) && (window.navigator.standalone);
 
             const iosInstallPopup = document.getElementById('iosInstallPopup');
