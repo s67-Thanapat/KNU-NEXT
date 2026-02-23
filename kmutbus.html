@@ -244,14 +244,14 @@
                 <div class="bg-blue-200 px-3 py-2 flex items-center gap-2 font-bold text-gray-800 text-sm border-b border-blue-300">
                     <i class="fa-solid fa-arrow-down"></i> ผ่านหน้ามอ
                 </div>
-                <div id="bus-front-list" class="p-3 flex flex-row gap-3 overflow-x-auto scrollbar-hide"></div>
+                <div id="bus-front-list" class="p-3 flex flex-col gap-3"></div>
             </div>
 
             <div class="bg-blue-100 rounded-md overflow-hidden shadow-sm">
                 <div class="bg-blue-200 px-3 py-2 flex items-center gap-2 font-bold text-gray-800 text-sm border-b border-blue-300">
                     <i class="fa-solid fa-arrow-down"></i> ผ่านหลังมอ (ถ.วงศ์สว่าง)
                 </div>
-                <div id="bus-back-list" class="p-3 flex flex-row gap-3 overflow-x-auto scrollbar-hide"></div>
+                <div id="bus-back-list" class="p-3 flex flex-col gap-3"></div>
             </div>
         </div>
     </div>
@@ -560,11 +560,11 @@
                 // ของใหม่
                 // แก้ไขตรง onclick: เอาเงื่อนไข userType ออก เพื่อให้ทุกคน (รวมถึง Admin) กดเปิดลิงก์ได้
                 const busHTML = `
-                    <div class="relative group shrink-0 min-w-[130px]">
+                    <div class="relative group w-full">
                         <div onclick="window.open('${item.url_contact || '#'}', '_blank')" 
-                             class="bg-[#1e3a8a] hover:bg-blue-900 cursor-pointer text-white font-bold py-2.5 px-4 rounded-lg shadow-sm flex items-center justify-center gap-2 transition-colors border border-blue-900 h-full">
+                            class="bg-[#1e3a8a] hover:bg-blue-900 cursor-pointer text-white font-bold py-2.5 px-4 rounded-lg shadow-sm flex items-center justify-center gap-2 transition-colors border border-blue-900 w-full">
                             <div class="w-2.5 h-2.5 bg-white rounded-full shrink-0"></div>
-                            <span class="text-center text-base tracking-wide whitespace-nowrap">${item.name}</span>
+                            <span class="text-center text-base tracking-wide">${item.name}</span>
                         </div>
                         
                         ${userType === 'admin' ? `
