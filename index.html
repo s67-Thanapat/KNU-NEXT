@@ -405,7 +405,7 @@
                     <img src="icon-192x192.png" alt="KMUTNB NEXT" class="w-full h-full object-contain">
                 </div>
                 
-                <h3 class="text-xl font-bold text-gray-900 mb-2">ติดตั้งแอปบน iPhone</h3>
+                <h3 class="text-xl font-bold text-gray-900 mb-2">ติดตั้งแอปบน iPhone/iPad</h3>
                 <p class="text-gray-500 text-sm mb-5 leading-relaxed">
                     เพิ่ม KMU-NEXT ลงในหน้าจอโฮมเพื่อประสบการณ์ที่ลื่นไหล ใช้งานง่าย และสะดวกกว่าเปิดเว็บผ่าน Safari
                 </p>
@@ -456,9 +456,15 @@
             installPopup.classList.add('hidden');
         });
 
-        // --- โค้ดใหม่สำหรับ iOS ---
+        // --- โค้ดใหม่สำหรับ iOS และการเช็ค LINE ---
         const iosInstallPopup = document.getElementById('iosInstallPopup');
         const closeIosPopupBtn = document.getElementById('closeIosPopupBtn');
+
+        // ✨ เพิ่มฟังก์ชันเช็ค LINE
+        const isLineBrowser = () => {
+            const userAgent = window.navigator.userAgent.toLowerCase();
+            return userAgent.indexOf("line") > -1;
+        };
 
         // ฟังก์ชันเช็คว่าเป็นอุปกรณ์ iOS หรือไม่
         const isIos = () => {
@@ -466,14 +472,22 @@
             return /iphone|ipad|ipod/.test(userAgent);
         }
         
-        // ฟังก์ชันเช็คว่าเปิดเป็นแอปแล้วหรือยัง (ถ้าเปิดจากแอปแล้ว Popup จะไม่เด้งกวนใจ)
+        // ฟังก์ชันเช็คว่าเปิดเป็นแอปแล้วหรือยัง
         const isInStandaloneMode = () => ('standalone' in window.navigator) && (window.navigator.standalone);
 
-        // ตรวจสอบเมื่อโหลดหน้าเว็บเสร็จ
+        // ✨ แก้ไขส่วนนี้: ตรวจสอบเมื่อโหลดหน้าเว็บเสร็จ
         document.addEventListener('DOMContentLoaded', () => {
-            // ถ้าเป็น iOS และ ยังไม่ได้ติดตั้ง (ไม่ได้เปิดผ่าน Standalone)
-            if (isIos() && !isInStandaloneMode()) {
-                // โชว์ Popup สอนติดตั้งสำหรับ iOS
+            if (isLineBrowser()) {
+                // ถ้าเปิดผ่านแอป LINE ให้แสดง SweetAlert เตือนผู้ใช้ทันที
+                Swal.fire({
+                    icon: 'info',
+                    title: 'แนะนำให้เปิดผ่านเบราว์เซอร์หลัก',
+                    html: 'เพื่อการใช้งานที่สมบูรณ์และดาวน์โหลดแอปได้<br><br>กรุณากดปุ่ม <b>⋮</b> (มุมขวาบน) แล้วเลือก<br><b>"เปิดในเบราว์เซอร์เริ่มต้น"</b> (Chrome/Safari)',
+                    confirmButtonText: 'เข้าใจแล้ว',
+                    confirmButtonColor: '#EE3F0B'
+                });
+            } else if (isIos() && !isInStandaloneMode()) {
+                // ถ้าไม่ได้เปิดผ่าน LINE และเป็น iOS ที่ยังไม่ได้ติดตั้งแอป ให้โชว์ Popup iOS ปกติ
                 iosInstallPopup.classList.remove('hidden');
             }
         });
