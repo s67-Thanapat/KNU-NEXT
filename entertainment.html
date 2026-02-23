@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KMUTNB Boardgame - ค้นหาร้านบอร์ดเกม</title>
+    <title>KMUTNB Entertainment - ค้นหาสถานที่พักผ่อน</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -35,23 +35,21 @@
         .custom-pin {
             background-color: white;
             border-radius: 50%;
-            border: 2px solid #6366f1;
+            border: 2px solid;
             text-align: center;
-            color: #6366f1;
             font-size: 16px;
             padding-top: 4px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            transition: transform 0.2s;
+            transition: all 0.2s ease-in-out;
         }
         .custom-pin:hover {
             transform: scale(1.15);
-            background-color: #6366f1;
-            color: white;
-            border-color: white;
             z-index: 999;
         }
-        .custom-pin i { transition: color 0.2s; }
-        .custom-pin:hover i { color: white !important; }
+        /* ซ่อน scrollbar สำหรับแถบหมวดหมู่ */
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
         .leaflet-popup-content-wrapper { border-radius: 12px; }
 
         .custom-modal-overlay {
@@ -79,25 +77,33 @@
                     <i class="fa-solid fa-arrow-left"></i>
                 </a>
                 <div>
-                    <h1 class="text-lg font-bold text-gray-800 leading-none">ค้นหาร้านบอร์ดเกม</h1>
+                    <h1 class="text-lg font-bold text-gray-800 leading-none">ค้นหาสถานที่พักผ่อน</h1>
                     <span id="user-status-text" class="text-xs text-gray-500">กำลังโหลด...</span>
                 </div>
             </div>
 
             <button onclick="handleTopRightButton()" id="action-btn" class="bg-kmutnb-main hover:bg-indigo-700 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg transition flex items-center gap-2">
-                <i class="fa-solid fa-dice"></i>
+                <i class="fa-solid fa-map-pin"></i>
                 <span id="action-btn-text" class="hidden sm:inline">จัดการระบบ</span>
             </button>
         </div>
     </header>
 
     <div class="relative flex-1">
-        <div class="absolute top-4 left-1/2 -translate-x-1/2 w-[95%] sm:w-[450px] z-[500] pointer-events-none">
-            <div class="bg-white p-2 rounded-xl shadow-lg pointer-events-auto flex items-center gap-2 w-full">
+        <div class="absolute top-4 left-1/2 -translate-x-1/2 w-[95%] sm:w-[600px] z-[500] pointer-events-none">
+            <div class="bg-white p-2 rounded-xl shadow-lg pointer-events-auto flex items-center gap-2 w-full mb-2">
                 <i class="fa-solid fa-magnifying-glass text-gray-400 ml-2"></i>
                 <input type="text" id="search-input" onkeyup="applyFilters()" 
                        class="w-full bg-transparent outline-none text-sm text-gray-700 placeholder-gray-400" 
-                       placeholder="ค้นหาชื่อร้านบอร์ดเกม หรือรายละเอียด...">
+                       placeholder="ค้นหาชื่อสถานที่ หรือรายละเอียด...">
+            </div>
+            
+            <div class="pointer-events-auto flex gap-2 overflow-x-auto sm:flex-wrap sm:justify-center sm:overflow-visible pb-1 scrollbar-hide px-1">
+                <button onclick="setCategory('all')" id="btn-cat-all" class="cat-btn bg-kmutnb-main text-white px-4 py-1.5 rounded-full text-sm font-bold whitespace-nowrap shadow transition">ทั้งหมด</button>
+                <button onclick="setCategory('sports')" id="btn-cat-sports" class="cat-btn bg-white text-gray-600 px-4 py-1.5 rounded-full text-sm font-bold whitespace-nowrap shadow transition"><i class="fa-solid fa-futbol mr-1 text-green-500"></i>กีฬา</button>
+                <button onclick="setCategory('karaoke')" id="btn-cat-karaoke" class="cat-btn bg-white text-gray-600 px-4 py-1.5 rounded-full text-sm font-bold whitespace-nowrap shadow transition"><i class="fa-solid fa-microphone mr-1 text-purple-500"></i>คาราโอเกะ</button>
+                <button onclick="setCategory('arcade')" id="btn-cat-arcade" class="cat-btn bg-white text-gray-600 px-4 py-1.5 rounded-full text-sm font-bold whitespace-nowrap shadow transition"><i class="fa-solid fa-gamepad mr-1 text-orange-500"></i>ตู้เกม</button>
+                <button onclick="setCategory('boardgame')" id="btn-cat-boardgame" class="cat-btn bg-white text-gray-600 px-4 py-1.5 rounded-full text-sm font-bold whitespace-nowrap shadow transition"><i class="fa-solid fa-dice mr-1 text-indigo-500"></i>บอร์ดเกม</button>
             </div>
         </div>
 
@@ -119,6 +125,20 @@
         let userType = sessionStorage.getItem('userType') || 'guest';
         if(userData.role === 'admin') userType = 'admin';
 
+        let currentCategory = 'all';
+
+        // ตั้งค่าหมวดหมู่
+        const categoryConfig = {
+            'sports': { icon: 'fa-futbol', color: '#10B981', label: 'กีฬา' },       // Green
+            'karaoke': { icon: 'fa-microphone', color: '#A855F7', label: 'คาราโอเกะ' }, // Purple
+            'arcade': { icon: 'fa-gamepad', color: '#F97316', label: 'ตู้เกม Arcade' }, // Orange
+            'boardgame': { icon: 'fa-dice', color: '#6366f1', label: 'บอร์ดเกม' }     // Indigo (KMUTNB main)
+        };
+
+        function getCategoryData(type) {
+            return categoryConfig[type] || { icon: 'fa-star', color: '#6B7280', label: 'ไม่ระบุ' }; // Default
+        }
+
         function updateUI() {
             const statusText = document.getElementById('user-status-text');
             const btnText = document.getElementById('action-btn-text');
@@ -132,7 +152,7 @@
             } else {
                 statusText.innerText = 'แตะที่หมุดเพื่อดูรายละเอียด';
                 statusText.className = 'text-xs text-gray-500';
-                btnText.innerText = 'แนะนำร้าน/แจ้งปัญหา';
+                btnText.innerText = 'แนะนำ/แจ้งปัญหา';
                 btnIcon.className = 'fa-regular fa-paper-plane';
             }
         }
@@ -165,13 +185,34 @@
             });
         }
 
-        // --- Search Logic ---
+        // --- Category & Search Logic ---
+        window.setCategory = function(cat) {
+            currentCategory = cat;
+            
+            // อัปเดตสไตล์ของปุ่ม Filter
+            document.querySelectorAll('.cat-btn').forEach(btn => {
+                btn.classList.remove('bg-kmutnb-main', 'text-white');
+                btn.classList.add('bg-white', 'text-gray-600');
+            });
+            const activeBtn = document.getElementById('btn-cat-' + cat);
+            if(activeBtn) {
+                activeBtn.classList.remove('bg-white', 'text-gray-600');
+                activeBtn.classList.add('bg-kmutnb-main', 'text-white');
+            }
+            
+            applyFilters();
+        }
+
         function applyFilters() {
             const searchText = document.getElementById('search-input').value.toLowerCase();
             const filteredData = all_entertain_data.filter(item => {
                 const name = (item.name || '').toLowerCase();
                 const details = (item.details || '').toLowerCase();
-                return name.includes(searchText) || details.includes(searchText);
+                const matchesSearch = name.includes(searchText) || details.includes(searchText);
+                
+                const matchesCategory = currentCategory === 'all' || item.type === currentCategory;
+                
+                return matchesSearch && matchesCategory;
             });
             renderPins(filteredData);
         }
@@ -182,7 +223,7 @@
                 const { data, error } = await supabaseClient.from('entertain').select('*').order('id', { ascending: true });
                 if (error) throw error;
                 all_entertain_data = data; 
-                applyFilters(); // อัปเดตการแสดงผลตาม Search ล่าสุด
+                applyFilters(); 
 
             } catch (err) { console.error('Error fetching entertain:', err); }
         }
@@ -194,7 +235,7 @@
                 if (error) throw error;
                 Swal.fire({ icon: 'success', title: 'เพิ่มสำเร็จ', timer: 1500, showConfirmButton: false });
                 
-                fetch_entertain(); // <--- แก้ไขคำผิดตรงนี้แล้วครับ
+                fetch_entertain(); 
                 
             } catch (err) { 
                 Swal.fire('Error', 'เพิ่มข้อมูลไม่สำเร็จ: ' + err.message, 'error'); 
@@ -227,9 +268,16 @@
             markers = [];
 
             data.forEach(item => {
+                const catData = getCategoryData(item.type);
+                
+                // สร้าง Custom Icon โดยอิงสีและไอคอนตามหมวดหมู่
                 const customIcon = L.divIcon({
                     className: 'custom-div-icon',
-                    html: `<div class="custom-pin" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-dice"></i></div>`,
+                    html: `<div class="custom-pin" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-color: ${catData.color}; color: ${catData.color};" 
+                                onmouseover="this.style.backgroundColor='${catData.color}'; this.style.color='white';" 
+                                onmouseout="this.style.backgroundColor='white'; this.style.color='${catData.color}';">
+                            <i class="fa-solid ${catData.icon}"></i>
+                           </div>`,
                     iconSize: [36, 36], iconAnchor: [18, 36], popupAnchor: [0, -38]
                 });
 
@@ -242,6 +290,10 @@
                                 <i class="fa-solid fa-xmark text-sm"></i>
                             </button>
 
+                            <div class="inline-block px-2 py-1 rounded-md text-xs font-bold mb-2 text-white shadow-sm" style="background-color: ${catData.color}">
+                                <i class="fa-solid ${catData.icon} mr-1"></i> ${catData.label}
+                            </div>
+                            
                             <h2 class="text-[22px] font-bold text-gray-800 pr-8 leading-tight tracking-tight">${item.name}</h2>
                             <div class="text-[13px] font-bold text-gray-500 mt-1 mb-4 flex items-center gap-1.5">
                                 <i class="fa-solid fa-info-circle"></i> ข้อมูลสถานที่
@@ -297,21 +349,33 @@
         }
 
         async function openReportModal() {
-            const { value: text } = await Swal.fire({ title: 'แนะนำร้าน / แจ้งปัญหา', input: 'textarea', inputPlaceholder: 'พิมพ์ข้อความที่นี่...', showCancelButton: true, confirmButtonText: 'ส่งข้อมูล', confirmButtonColor: '#EE3F0B' });
+            const { value: text } = await Swal.fire({ title: 'แนะนำสถานที่ / แจ้งปัญหา', input: 'textarea', inputPlaceholder: 'พิมพ์ข้อความที่นี่...', showCancelButton: true, confirmButtonText: 'ส่งข้อมูล', confirmButtonColor: '#EE3F0B' });
             if (text) {
                 try {
-                    await supabaseClient.from('reports').insert([{ description: '[restaurants] ' + text, reporter_name: userData.full_name || 'Guest User', status: 'pending' }]);
+                    await supabaseClient.from('reports').insert([{ description: '[entertain] ' + text, reporter_name: userData.full_name || 'Guest User', status: 'pending' }]);
                     Swal.fire('ขอบคุณ', 'ส่งข้อมูลเรียบร้อยแล้ว', 'success');
                 } catch (err) { Swal.fire('Error', 'ส่งไม่สำเร็จ', 'error'); }
             }
         }
 
+        // --- แก้ไข Modal ให้มีตัวเลือกประเภท ---
+        const typeSelectHTML = `
+            <div class="text-left text-sm text-gray-500 mb-1">ประเภทสถานที่</div>
+            <select id="s-type" class="swal2-select !w-full !m-0 !mb-3 text-sm">
+                <option value="sports">กีฬา</option>
+                <option value="karaoke">คาราโอเกะ</option>
+                <option value="arcade">ตู้เกม Arcade</option>
+                <option value="boardgame">บอร์ดเกม</option>
+            </select>
+        `;
+
         async function openAddPinModal(lat, lng) {
             const { value: v } = await Swal.fire({
                 title: 'เพิ่มสถานที่',
                 html: `
-                    <div class="text-left text-sm text-gray-500 mb-1">ชื่อสถานที่/ผู้สอน</div>
+                    <div class="text-left text-sm text-gray-500 mb-1">ชื่อสถานที่</div>
                     <input id="s-name" class="swal2-input !w-full !m-0 !mb-3">
+                    ${typeSelectHTML}
                     <div class="text-left text-sm text-gray-500 mb-1">URL ลิงก์ติดต่อ (เช่น Facebook)</div>
                     <input id="s-contact-url" class="swal2-input !w-full !m-0 !mb-3" placeholder="https://...">
                     <div class="text-left text-sm text-gray-500 mb-1">URL รูปภาพ (ถ้ามี)</div>
@@ -323,21 +387,24 @@
                     const name = document.getElementById('s-name').value;
                     if (!name) return Swal.showValidationMessage('กรุณาใส่ชื่อ');
                     return {
-                        name, details: document.getElementById('s-details').value,
+                        name, 
+                        type: document.getElementById('s-type').value,
+                        details: document.getElementById('s-details').value,
                         contact: document.getElementById('s-contact-url').value,
                         image: document.getElementById('s-image-url').value
                     };
                 }
             });
-            if (v) add_entertain_ToSupabase(v.name, null, v.details, lat, lng, v.contact, v.image);
+            if (v) add_entertain_ToSupabase(v.name, v.type, v.details, lat, lng, v.contact, v.image);
         }
 
         async function openManualAddPinModal() {
             const { value: v } = await Swal.fire({
                 title: 'เพิ่มสถานที่ (ระบุพิกัด)',
                 html: `
-                    <div class="text-left text-sm text-gray-500 mb-1">ชื่อสถานที่/ผู้สอน</div>
+                    <div class="text-left text-sm text-gray-500 mb-1">ชื่อสถานที่</div>
                     <input id="manual-name" class="swal2-input !w-full !m-0 !mb-3">
+                    ${typeSelectHTML.replace('s-type', 'manual-type')}
                     <div class="grid grid-cols-2 gap-2 mb-3">
                         <div><div class="text-left text-sm text-gray-500">Lat</div><input id="manual-lat" class="swal2-input !w-full !m-0"></div>
                         <div><div class="text-left text-sm text-gray-500">Lng</div><input id="manual-lng" class="swal2-input !w-full !m-0"></div>
@@ -355,7 +422,9 @@
                     const lng = document.getElementById('manual-lng').value;
                     if (!name || !lat || !lng) return Swal.showValidationMessage('กรุณากรอกข้อมูลให้ครบ');
                     return {
-                        name, details: document.getElementById('manual-details').value,
+                        name, 
+                        type: document.getElementById('manual-type').value,
+                        details: document.getElementById('manual-details').value,
                         lat: parseFloat(lat), lng: parseFloat(lng),
                         contact: document.getElementById('manual-contact-url').value,
                         image: document.getElementById('manual-image-url').value
@@ -363,19 +432,33 @@
                 }
             });
             if (v) {
-                add_entertain_ToSupabase(v.name, null, v.details, v.lat, v.lng, v.contact, v.image);
+                add_entertain_ToSupabase(v.name, v.type, v.details, v.lat, v.lng, v.contact, v.image);
                 map.setView([v.lat, v.lng], 17);
             }
         }
 
         window.openEditPinModal = async function(id) {
-            const entertain = all_entertain_data.find(r => r.id === id); // <--- แก้เป็นตัว d พิมพ์เล็กแล้วครับ
+            const entertain = all_entertain_data.find(r => r.id === id); 
             if (!entertain) return;
+            
+            // ทำให้ dropdown เลือกค่าเดิมที่มีอยู่
+            const currentType = entertain.type || 'boardgame';
+            const editTypeHTML = `
+                <div class="text-left text-sm text-gray-500 mb-1">ประเภทสถานที่</div>
+                <select id="edit-type" class="swal2-select !w-full !m-0 !mb-3 text-sm">
+                    <option value="sports" ${currentType === 'sports' ? 'selected' : ''}>กีฬา</option>
+                    <option value="karaoke" ${currentType === 'karaoke' ? 'selected' : ''}>คาราโอเกะ</option>
+                    <option value="arcade" ${currentType === 'arcade' ? 'selected' : ''}>ตู้เกม Arcade</option>
+                    <option value="boardgame" ${currentType === 'boardgame' ? 'selected' : ''}>บอร์ดเกม</option>
+                </select>
+            `;
+
             const { value: v } = await Swal.fire({
                 title: 'แก้ไขข้อมูลสถานที่',
                 html: `
                     <div class="text-left text-sm text-gray-500 mb-1">ชื่อสถานที่</div>
                     <input id="edit-name" class="swal2-input !w-full !m-0 !mb-3" value="${entertain.name}">
+                    ${editTypeHTML}
                     <div class="text-left text-sm text-gray-500 mb-1">URL ลิงก์ติดต่อ</div>
                     <input id="edit-contact-url" class="swal2-input !w-full !m-0 !mb-3" value="${entertain.url_contact || ''}">
                     <div class="text-left text-sm text-gray-500 mb-1">URL รูปภาพ (ถ้ามี)</div>
@@ -387,13 +470,15 @@
                     const name = document.getElementById('edit-name').value;
                     if (!name) Swal.showValidationMessage('กรุณาใส่ชื่อสถานที่');
                     return {
-                        name, details: document.getElementById('edit-details').value,
+                        name, 
+                        type: document.getElementById('edit-type').value,
+                        details: document.getElementById('edit-details').value,
                         contact: document.getElementById('edit-contact-url').value,
                         image: document.getElementById('edit-image-url').value
                     };
                 }
             });
-            if (v) update_entertain_InSupabase(id, v.name, null, v.details, v.contact, v.image);
+            if (v) update_entertain_InSupabase(id, v.name, v.type, v.details, v.contact, v.image);
         }
 
         updateUI();
