@@ -65,42 +65,76 @@
             box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
         }
 
-        /* 📱 สำหรับมือถือ (จอน้อยกว่า 768px) -> เลื่อนขึ้นจากข้างล่าง */
+        /* 📱 สำหรับมือถือ (จอน้อยกว่า 768px) -> แถบอยู่ด้านล่าง เลื่อนขึ้นบน */
         @media (max-width: 767px) {
             #bus-sidebar {
                 top: auto !important;
                 bottom: 0 !important;
                 left: 0 !important;
                 width: 100% !important;
-                height: 60vh !important; /* ความสูงของเมนู */
-                border-radius: 24px 24px 0 0 !important;
-                padding-top: 10px;
+                height: 60vh !important;
+                border-radius: 0 !important; /* เอาขอบมนออกเพื่อให้ต่อกับแถบกดด้านบนพอดี */
+                padding-top: 0 !important;
             }
             #bus-sidebar.sidebar-hidden { transform: translateY(100%); }
             #bus-sidebar.sidebar-visible { transform: translateY(0); }
             
-            .drag-handle {
-                width: 40px;
-                height: 5px;
-                background-color: rgba(255, 255, 255, 0.5);
-                border-radius: 10px;
-                margin: 0 auto 12px auto;
+            .drag-handle { display: none; } /* ซ่อนขีดจับทิ้ง เพราะเรามีแถบกดแทนแล้ว */
+
+            /* --- ปรับรูปร่างแถบกด (Toggle Bar) ให้เป็นแนวนอนติดพื้น --- */
+            #bus-sidebar-toggle {
+                top: auto !important;
+                bottom: 0 !important;
+                left: 0 !important;
+                width: 100% !important;
+                height: 56px !important; /* ความสูงของแถบ */
+                flex-direction: row !important; /* เรียงแนวนอน */
+                justify-content: center !important;
+                align-items: center !important;
+                padding: 0 !important;
+                border-right: none !important;
+                border-top: 2px solid #1e3a8a !important; /* ขอบบนสีน้ำเงินเข้ม */
+                border-radius: 20px 20px 0 0 !important; /* มนมุมเฉพาะด้านบน */
+            }
+            
+            /* อนิเมชันเลื่อนขึ้นบน (60vh เท่ากับความสูงของ Sidebar พอดี) */
+            #bus-sidebar-toggle.toggle-hidden { transform: translateY(0) !important; }
+            #bus-sidebar-toggle.toggle-visible { transform: translateY(-60vh) !important; }
+
+            /* ยกเลิก margin ที่ใช้จัดกึ่งกลางในจอคอม */
+            #bus-sidebar-toggle .mb-auto, 
+            #bus-sidebar-toggle .mt-auto {
+                margin: 0 !important;
+            }
+
+            /* จัดระยะห่างและหมุนลูกศรให้ชี้ ขึ้น/ลง แทน ซ้าย/ขวา */
+            #toggle-arrow {
+                margin-left: 16px;
+                transform: rotate(-90deg) !important; 
+                transition: transform 0.3s ease;
             }
         }
 
-        /* 💻 สำหรับจอคอม (768px ขึ้นไป) -> เลื่อนจากด้านซ้าย */
+        /* คอม */ 
         @media (min-width: 768px) {
             #bus-sidebar {
+                position: absolute !important;
                 top: 64px !important;
                 bottom: auto !important;
-                left: 0 !important;
+                left: 0 !important; /* ให้ Sidebar เริ่มจากซ้ายสุด */
                 width: 320px !important;
                 height: calc(100vh - 64px) !important;
                 border-radius: 0 !important;
+                box-shadow: 4px 0 15px rgba(0,0,0,0.1);
+                z-index: 600;
             }
             #bus-sidebar.sidebar-hidden { transform: translateX(-100%); }
             #bus-sidebar.sidebar-visible { transform: translateX(0); }
             .drag-handle { display: none; }
+
+            /* ควบคุมแถบให้เลื่อนตาม Sidebar */
+            #bus-sidebar-toggle.toggle-hidden { transform: translateX(0); }
+            #bus-sidebar-toggle.toggle-visible { transform: translateX(320px); } 
         }
 
         /* สำหรับจอคอม / แท็บเล็ต (เลื่อนจากด้านซ้าย) */
@@ -167,9 +201,7 @@
 
         <div class="flex gap-2 overflow-x-auto scrollbar-hide pointer-events-auto pb-1 sm:flex-wrap justify-center w-full" id="filter-container">
             <button onclick="setFilter('all')" id="btn-all" class="filter-btn bg-gray-800 text-white px-3 py-1.5 rounded-full text-xs font-medium shadow whitespace-nowrap border border-transparent transition cursor-pointer">ทั้งหมด</button>
-            <button onclick="toggleBusSidebar()" id="btn-bus" class="filter-btn bg-blue-600 text-white px-3 py-1.5 rounded-full text-xs font-medium shadow whitespace-nowrap border border-gray-200 hover:bg-blue-700 transition cursor-pointer flex items-center gap-1">
-                <i class="fa-solid fa-bus"></i> รถเมล์
-            </button>
+
             <button onclick="setFilter('motorcycle')" id="btn-motorcycle" class="filter-btn bg-white text-gray-600 px-3 py-1.5 rounded-full text-xs font-medium shadow whitespace-nowrap border border-gray-200 hover:bg-gray-50 transition cursor-pointer">🛵 วินมอเตอร์ไซค์</button>
             <button onclick="setFilter('van')" id="btn-van" class="filter-btn bg-white text-gray-600 px-3 py-1.5 rounded-full text-xs font-medium shadow whitespace-nowrap border border-gray-200 hover:bg-gray-50 transition cursor-pointer">🚐 รถตู้รับส่ง</button>
             <button onclick="setFilter('bus_stop')" id="btn-bus_stop" class="filter-btn bg-white text-gray-600 px-3 py-1.5 rounded-full text-xs font-medium shadow whitespace-nowrap border border-gray-200 hover:bg-blue-50 transition cursor-pointer">🚏 ป้ายรถเมล์</button>
@@ -179,18 +211,33 @@
     <div id="infoModal" class="custom-modal-overlay" onclick="if(event.target == this) closeInfoModal()">
       <div class="custom-modal-content" id="modalContent"></div>
     </div>
+
+    <div id="bus-sidebar-toggle" onclick="toggleBusSidebar()" 
+         class="absolute top-16 left-0 h-[calc(100vh-64px)] w-10 bg-blue-600 shadow-[4px_0_15px_rgba(0,0,0,0.15)] flex flex-col items-center py-4 cursor-pointer hover:bg-blue-700 transition-transform duration-300 ease-in-out group border-r border-blue-700 z-[650] toggle-visible">
+        
+        <div class="flex items-center justify-center gap-2 md:mb-auto">
+            <div class="w-8 h-8 md:bg-blue-700 text-white rounded-lg flex items-center justify-center text-xl md:text-sm shadow-none md:shadow-inner group-hover:bg-blue-800 transition-colors">
+                <i class="fa-solid fa-bus"></i>
+            </div>
+            <span class="md:hidden text-white font-bold text-lg tracking-wide ml-1">เส้นทางรถเมล์</span>
+        </div>
+
+        <div class="text-white group-hover:scale-110 transition-transform">
+            <i id="toggle-arrow" class="fa-solid fa-chevron-left text-xl"></i>
+        </div>
+        
+        <div class="hidden md:block mt-auto"></div>
+    </div>
+
     <div id="map" class="h-full w-full absolute top-16 left-0 z-0"></div>
 
     <div id="bus-sidebar" class="sidebar-visible">
         <div class="drag-handle"></div>
         
-        <div class="bg-blue-600 text-white px-4 pb-4 md:py-4 flex items-center justify-between sticky top-0 z-10 cursor-pointer border-b border-blue-500/50" onclick="toggleBusSidebar()">
-            <div class="flex items-center gap-3">
+        <div class="bg-blue-600 text-white px-4 pb-4 md:py-4 hidden md:flex items-center justify-center sticky top-0 z-10 cursor-pointer border-b border-blue-500/50" onclick="toggleBusSidebar()">            <div class="flex items-center gap-3">
                 <i class="fa-solid fa-bus text-xl"></i>
                 <h2 class="text-xl font-bold tracking-wide">เส้นทางรถเมล์</h2>
             </div>
-            <i class="fa-solid fa-chevron-down md:hidden text-lg"></i>
-            <i class="fa-solid fa-chevron-left hidden md:block text-lg"></i>
         </div>
 
         <div class="p-3 flex flex-col gap-4 overflow-y-auto h-full pb-10">
@@ -293,20 +340,35 @@
         // --------------------------------------------------------
         function toggleBusSidebar() {
             const sidebar = document.getElementById('bus-sidebar');
-            const btnBus = document.getElementById('btn-bus');
+            const toggleBar = document.getElementById('bus-sidebar-toggle');
+            const arrowIcon = document.getElementById('toggle-arrow');
             
             isBusSidebarOpen = !isBusSidebarOpen;
 
             if(isBusSidebarOpen) {
+                // เปิด Sidebar และเลื่อนแถบมาทางขวา
                 sidebar.classList.remove('sidebar-hidden');
                 sidebar.classList.add('sidebar-visible');
-                btnBus.classList.replace('bg-white', 'bg-blue-600');
-                btnBus.classList.replace('text-gray-600', 'text-white');
+                
+                toggleBar.classList.remove('toggle-hidden');
+                toggleBar.classList.add('toggle-visible');
+
+                if(arrowIcon) {
+                    arrowIcon.classList.remove('fa-chevron-right');
+                    arrowIcon.classList.add('fa-chevron-left');
+                }
             } else {
+                // ปิด Sidebar และเลื่อนแถบกลับไปซ้ายสุด
                 sidebar.classList.remove('sidebar-visible');
                 sidebar.classList.add('sidebar-hidden');
-                btnBus.classList.replace('bg-blue-600', 'bg-white');
-                btnBus.classList.replace('text-white', 'text-gray-600');
+                
+                toggleBar.classList.remove('toggle-visible');
+                toggleBar.classList.add('toggle-hidden');
+
+                if(arrowIcon) {
+                    arrowIcon.classList.remove('fa-chevron-left');
+                    arrowIcon.classList.add('fa-chevron-right');
+                }
             }
         }
 
@@ -317,12 +379,12 @@
             if (isBusSidebarOpen) toggleBusSidebar();
             
             // อัปเดตสีปุ่ม
-            document.querySelectorAll('.filter-btn:not(#btn-bus)').forEach(btn => {
+            document.querySelectorAll('.filter-btn').forEach(btn => {
                 btn.className = "filter-btn bg-white text-gray-600 px-3 py-1.5 rounded-full text-xs font-medium shadow whitespace-nowrap border border-gray-200 hover:bg-gray-50 transition cursor-pointer";
             });
             
             const activeBtn = document.getElementById(`btn-${type}`);
-            if(activeBtn && type !== 'bus') {
+            if(activeBtn) {
                 activeBtn.className = "filter-btn bg-gray-800 text-white px-3 py-1.5 rounded-full text-xs font-medium shadow whitespace-nowrap border border-transparent transition cursor-pointer";
             }
 
