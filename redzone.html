@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Red Zone Alert - Map</title>
@@ -13,6 +15,71 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
+        /* ป้องกันการ Zoom อัตโนมัติบน iPhone เวลาจิ้ม Input */
+        /* --- แก้ไข Layout สำหรับมือถือโดยเฉพาะ --- */
+        @media screen and (max-width: 600px) {
+            /* 1. ป้องกัน iPhone ซูมหน้าจอเองเวลาจิ้มพิมพ์ (ต้องใช้ font 16px ขึ้นไป) */
+            .swal2-textarea, .swal2-input {
+                font-size: 16px !important;
+            }
+
+            /* 2. ปรับ Header ให้กระทัดรัด เหลือพื้นที่แผนที่มากขึ้น */
+            header {
+                height: 65px !important;
+                padding: 0 10px !important;
+            }
+            
+            #map {
+                height: calc(100% - 65px) !important;
+                margin-top: 65px !important;
+            }
+
+            /* 3. ยุบปุ่ม "แนะนำ/แจ้งปัญหา" ให้เหลือแค่ไอคอนบนมือถือเพื่อไม่ให้เบียดชื่อเว็บ */
+            header button span {
+                display: none; 
+            }
+            header button {
+                padding: 10px 14px !important;
+                border-radius: 50% !important; /* ทำเป็นปุ่มกลม */
+            }
+
+            /* 4. ขยับ Control Panel (ปุ่ม ☰) ไม่ให้ทับกับ Header */
+            #control-panel {
+                top: 75px !important;
+                left: 10px !important;
+            }
+
+            /* 5. ปรับ Toast แจ้งเตือนให้ลอยอยู่ด้านล่างแทน เพื่อไม่ให้บัง Header */
+            #toast {
+                top: auto !important;
+                bottom: 100px !important;
+            }
+        }
+        /* สั่งซ่อนตัวควบคุมการซูมของ Leaflet ทั้งหมด */
+        .leaflet-control-zoom {
+            display: none !important;
+        }
+        /* ปรับปรุงแผนที่ให้เริ่มต่อจาก Header */
+        #map { 
+            height: calc(100% - 75px); 
+            margin-top: 75px; 
+        }
+
+        /* ขยับ Control Panel (เมนู ☰) ลงมาด้านล่าง Header */
+        #control-panel { 
+            top: 90px !important; 
+        }
+
+        /* ขยับข้อความแจ้งเตือน Toast ให้ลอยต่ำลงมาเล็กน้อย */
+        #toast {
+            top: 95px !important;
+        }
+
+        /* เอฟเฟกต์ตอนเอาเมาส์ไปวางที่ปุ่มย้อนกลับ */
+        button[onclick*='window.location.href']:hover {
+            background: #e9ecef !important;
+            transform: scale(1.05);
+        }
         body, html { height: 100%; margin: 0; font-family: 'Sarabun', sans-serif; overflow: hidden; background-color: #f0f2f5; }
         #map { height: 100%; width: 100%; z-index: 1; }
 
@@ -76,6 +143,34 @@
     </style>
 </head>
 <body>
+    <div id="reportModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 25px; border-radius: 15px; width: 90%; max-width: 450px; box-shadow: 0 5px 20px rgba(0,0,0,0.2);">
+            <h2 style="margin-top: 0; text-align: center; color: #444; font-size: 22px;">แจ้งปัญหา</h2>
+            
+            <textarea id="reportText" placeholder="พิมพ์ข้อความที่นี่..." style="width: 100%; height: 120px; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-family: 'Sarabun', sans-serif; font-size: 16px; box-sizing: border-box; resize: none; margin-bottom: 20px;"></textarea>
+            
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button onclick="submitReport()" style="background: #ff4500; color: white; border: none; padding: 10px 25px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; flex: 1;">ส่งข้อมูล</button>
+                <button onclick="closeReportModal()" style="background: #6c757d; color: white; border: none; padding: 10px 25px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; flex: 1;">Cancel</button>
+            </div>
+        </div>
+    </div>
+    <div style="position: fixed; top: 0; left: 0; width: 100%; height: 75px; background: white; z-index: 4000; display: flex; align-items: center; padding: 0 15px; box-sizing: border-box; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+    
+        <button onclick="window.location.href='index.html'" style="width: 48px; height: 48px; border-radius: 50%; border: none; background: #f1f3f5; cursor: pointer; display: flex; align-items: center; justify-content: center; margin-right: 12px; transition: all 0.2s;">
+            <i class="fa-solid fa-arrow-left" style="font-size: 18px; color: #495057;"></i>
+        </button>
+
+        <div style="flex-grow: 1; display: flex; flex-direction: column; justify-content: center;">
+            <h1 style="margin: 0; font-size: 19px; color: #1a2b4b; font-weight: 800; line-height: 1.2; letter-spacing: -0.5px;">Red Zone Map</h1>
+            <p style="margin: 0; font-size: 13px; color: #6b7280; font-weight: 400;">แตะแผนที่เพื่อแจ้งเหตุ หรือ ดูจุดอันตราย</p>
+        </div>
+
+        <button onclick="openReportModal()" style="background: #ff6600; color: white; border: none; padding: 8px 18px; border-radius: 50px; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; cursor: pointer; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);">
+            <i class="fa-solid fa-paper-plane"></i>
+            <span>แจ้งปัญหา</span>
+        </button>
+    </div>
 
     <div id="control-panel">
         <button id="panel-toggle-btn" onclick="toggleControlPanel()">☰</button>
@@ -162,6 +257,73 @@
     <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
 
     <script>
+        // เปลี่ยนฟังก์ชัน openReportModal ใหม่ทั้งหมด
+        // ฟังก์ชันเปิดแจ้งปัญหาโดยใช้ SweetAlert2 แบบเดียวกับ tutor.html
+        async function openReportModal() {
+            // --- เพิ่มบรรทัดนี้ลงไป ---
+            const panel = document.getElementById('control-panel');
+            if (!panel.classList.contains('panel-collapsed')) {
+                toggleControlPanel(); // สั่งให้หุบเมนูถ้ามันเปิดอยู่
+            }
+            // ------------------------
+
+            if (!currentUser) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'กรุณาล็อกอิน',
+                    confirmButtonColor: '#ff6600'
+                });
+                return;
+            }
+
+            const { value: text } = await Swal.fire({
+                title: 'แนะนำ/แจ้งปัญหา',
+                input: 'textarea',
+                inputPlaceholder: 'พิมพ์ข้อความที่นี่...',
+                showCancelButton: true,
+                confirmButtonText: 'ส่งข้อมูล',
+                cancelButtonText: 'ยกเลิก',
+                confirmButtonColor: '#ff6600',
+                cancelButtonColor: '#6c757d',
+                heightAuto: false, 
+                preConfirm: (value) => {
+                    if (!value || value.trim() === "") {
+                        Swal.showValidationMessage('กรุณาพิมพ์ข้อความก่อนส่งครับ');
+                    }
+                    return value;
+                }
+            });
+
+            if (text) {
+                try {
+                    Swal.fire({
+                        title: 'กำลังส่งข้อมูล...',
+                        allowOutsideClick: false,
+                        didOpen: () => { Swal.showLoading(); }
+                    });
+
+                    const { error } = await db.from('reports').insert([{
+                        user_id: currentUser.id,
+                        full_name: currentUser.full_name || currentUser.username,
+                        message: text
+                    }]);
+
+                    if (error) throw error;
+
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'ส่งข้อมูลสำเร็จ',
+                        text: 'ได้รับเรื่องแล้ว ขอบคุณครับ!',
+                        confirmButtonColor: '#ff6600'
+                    });
+
+                } catch (err) {
+                    Swal.fire('เกิดข้อผิดพลาด', err.message, 'error');
+                }
+            }
+        }
+// หมายเหตุ: ฟังก์ชัน submitReport() และ closeReportModal() เดิมสามารถลบทิ้งได้เลย 
+// เพราะรวมอยู่ใน openReportModal ตัวใหม่นี้แล้วครับ
         // --- 1. SETUP & CONFIG ---
         const PROJECT_URL = 'https://yowjvmiosrclqstoeqat.supabase.co';
         const ANON_KEY = 'sb_publishable_3OX-g4Dm1p4ZwwHV_fr3nA_wtq0RkmS';
