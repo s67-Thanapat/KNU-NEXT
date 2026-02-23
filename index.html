@@ -430,69 +430,78 @@
             </div>
     </div>
     <script>
-        // --- โค้ดเดิมสำหรับ Android (คงไว้เหมือนเดิม) ---
-        let deferredPrompt;
-        const installPopup = document.getElementById('installPopup');
-        const installBtn = document.getElementById('installBtn');
-        const closePopupBtn = document.getElementById('closePopupBtn');
+        document.addEventListener('DOMContentLoaded', () => {
+            // ใช้ sessionStorage แทน เพื่อให้รีเซ็ตใหม่ทุกครั้งที่ปิดเว็บแล้วเข้าใหม่
+            const hasDismissedPopup = sessionStorage.getItem('hideInstallPopup');
 
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            installPopup.classList.remove('hidden');
-        });
+            // ฟังก์ชันเช็คอุปกรณ์และเบราว์เซอร์
+            const isLineBrowser = () => window.navigator.userAgent.toLowerCase().indexOf("line") > -1;
+            const isIos = () => /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
+            const isInStandaloneMode = () => ('standalone' in window.navigator) && (window.navigator.standalone);
 
-        installBtn.addEventListener('click', async () => {
-            installPopup.classList.add('hidden');
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                console.log(`ผลการติดตั้ง: ${outcome}`);
-                deferredPrompt = null;
+            const iosInstallPopup = document.getElementById('iosInstallPopup');
+            const closeIosPopupBtn = document.getElementById('closeIosPopupBtn');
+
+            // 1. ถ้าเปิดผ่าน LINE (เตือนให้ไปเปิดเบราว์เซอร์นอกเสมอ)
+            if (isLineBrowser()) {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'แนะนำให้เปิดผ่านเบราว์เซอร์หลัก',
+                        html: 'เพื่อการใช้งานที่สมบูรณ์และดาวน์โหลดแอปได้<br><br>กรุณากดปุ่ม <b>⋮</b> (มุมขวาบน) แล้วเลือก<br><b>"เปิดในเบราว์เซอร์เริ่มต้น"</b>',
+                        confirmButtonText: 'เข้าใจแล้ว',
+                        confirmButtonColor: '#EE3F0B'
+                    });
+                }
+            } 
+            // 2. ถ้าเป็น iOS Safari + ยังไม่ได้เปิดเป็นแอป + ยังไม่เคยกดปิดใน "รอบการเข้าเว็บนี้"
+            else if (isIos() && !isInStandaloneMode() && iosInstallPopup && !hasDismissedPopup) {
+                iosInstallPopup.classList.remove('hidden');
             }
-        });
 
-        closePopupBtn.addEventListener('click', () => {
-            installPopup.classList.add('hidden');
-        });
+            // ปุ่มปิด Popup ฝั่ง iOS
+            if(closeIosPopupBtn) {
+                closeIosPopupBtn.addEventListener('click', () => {
+                    iosInstallPopup.classList.add('hidden');
+                    sessionStorage.setItem('hideInstallPopup', 'true'); // จำไว้แค่ช่วงที่ยังไม่ปิดแท็บเบราว์เซอร์
+                });
+            }
 
-        // --- โค้ดใหม่สำหรับ iOS และการเช็ค LINE ---
-        const iosInstallPopup = document.getElementById('iosInstallPopup');
-        const closeIosPopupBtn = document.getElementById('closeIosPopupBtn');
+            // 3. ฝั่ง Android
+            let deferredPrompt;
+            const installPopup = document.getElementById('installPopup');
+            const installBtn = document.getElementById('installBtn');
+            const closePopupBtn = document.getElementById('closePopupBtn');
 
-        // ✨ เพิ่มฟังก์ชันเช็ค LINE
-        const isLineBrowser = () => {
-            const userAgent = window.navigator.userAgent.toLowerCase();
-            return userAgent.indexOf("line") > -1;
-        };
+            if(installPopup) {
+                window.addEventListener('beforeinstallprompt', (e) => {
+                    e.preventDefault();
+                    deferredPrompt = e;
+                    // โชว์เฉพาะถ้าในรอบการเข้าเว็บนี้ยังไม่เคยกดปิด
+                    if(!hasDismissedPopup) {
+                        installPopup.classList.remove('hidden'); 
+                    }
+                });
 
-        // ฟังก์ชันเช็คว่าเป็นอุปกรณ์ iOS หรือไม่
-        const isIos = () => {
-            const userAgent = window.navigator.userAgent.toLowerCase();
-            return /iphone|ipad|ipod/.test(userAgent);
-        }
-        
-        // ฟังก์ชันเช็คว่าเปิดเป็นแอปแล้วหรือยัง
-        const isInStandaloneMode = () => ('standalone' in window.navigator) && (window.navigator.standalone);
+                if(installBtn) {
+                    installBtn.addEventListener('click', async () => {
+                        installPopup.classList.add('hidden');
+                        sessionStorage.setItem('hideInstallPopup', 'true');
+                        if (deferredPrompt) {
+                            deferredPrompt.prompt();
+                            const { outcome } = await deferredPrompt.userChoice;
+                            deferredPrompt = null;
+                        }
+                    });
+                }
 
-        // ✨ แก้ไขส่วนนี้: เอา DOMContentLoaded ออก เพื่อให้ทำงานทันทีไม่ต้องรอโหลดเสร็จ
-        if (isLineBrowser()) {
-            // ถ้าเปิดผ่านแอป LINE ให้แสดง SweetAlert เตือนผู้ใช้ทันที
-            Swal.fire({
-                icon: 'info',
-                title: 'แนะนำให้เปิดผ่านเบราว์เซอร์หลัก',
-                html: 'เพื่อการใช้งานที่สมบูรณ์และดาวน์โหลดแอปได้<br><br>กรุณากดปุ่ม <b>⋮</b> (มุมขวาบน) แล้วเลือก<br><b>"เปิดในเบราว์เซอร์เริ่มต้น"</b> (Chrome/Safari)',
-                confirmButtonText: 'เข้าใจแล้ว',
-                confirmButtonColor: '#EE3F0B'
-            });
-        } else if (isIos() && !isInStandaloneMode()) {
-            // ถ้าไม่ได้เปิดผ่าน LINE และเป็น iOS ที่ยังไม่ได้ติดตั้งแอป ให้โชว์ Popup iOS ปกติ
-            iosInstallPopup.classList.remove('hidden');
-        }
-
-        // ปิด Popup ฝั่ง iOS เมื่อกดปุ่มกากบาท
-        closeIosPopupBtn.addEventListener('click', () => {
-            iosInstallPopup.classList.add('hidden');
+                if(closePopupBtn) {
+                    closePopupBtn.addEventListener('click', () => {
+                        installPopup.classList.add('hidden');
+                        sessionStorage.setItem('hideInstallPopup', 'true');
+                    });
+                }
+            }
         });
     </script>
 </body>
