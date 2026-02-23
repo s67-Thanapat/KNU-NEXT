@@ -56,8 +56,66 @@
 
         /* Bus Sidebar Animation */
         #bus-sidebar {
-            transition: transform 0.3s ease-in-out;
-            box-shadow: 4px 0 15px rgba(0,0,0,0.1);
+            position: fixed;
+            background-color: #2563EB;
+            z-index: 600;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+        }
+
+        /* 📱 สำหรับมือถือ (จอน้อยกว่า 768px) -> เลื่อนขึ้นจากข้างล่าง */
+        @media (max-width: 767px) {
+            #bus-sidebar {
+                top: auto !important;
+                bottom: 0 !important;
+                left: 0 !important;
+                width: 100% !important;
+                height: 60vh !important; /* ความสูงของเมนู */
+                border-radius: 24px 24px 0 0 !important;
+                padding-top: 10px;
+            }
+            #bus-sidebar.sidebar-hidden { transform: translateY(100%); }
+            #bus-sidebar.sidebar-visible { transform: translateY(0); }
+            
+            .drag-handle {
+                width: 40px;
+                height: 5px;
+                background-color: rgba(255, 255, 255, 0.5);
+                border-radius: 10px;
+                margin: 0 auto 12px auto;
+            }
+        }
+
+        /* 💻 สำหรับจอคอม (768px ขึ้นไป) -> เลื่อนจากด้านซ้าย */
+        @media (min-width: 768px) {
+            #bus-sidebar {
+                top: 64px !important;
+                bottom: auto !important;
+                left: 0 !important;
+                width: 320px !important;
+                height: calc(100vh - 64px) !important;
+                border-radius: 0 !important;
+            }
+            #bus-sidebar.sidebar-hidden { transform: translateX(-100%); }
+            #bus-sidebar.sidebar-visible { transform: translateX(0); }
+            .drag-handle { display: none; }
+        }
+
+        /* สำหรับจอคอม / แท็บเล็ต (เลื่อนจากด้านซ้าย) */
+        @media (min-width: 768px) {
+            #bus-sidebar {
+                position: absolute;
+                top: 64px; /* อยู่ใต้ Header */
+                left: 0;
+                width: 320px;
+                height: calc(100vh - 64px);
+                box-shadow: 4px 0 15px rgba(0,0,0,0.1);
+            }
+            .sidebar-hidden { transform: translateX(-100%); }
+            .sidebar-visible { transform: translateX(0); }
+            .drag-handle { display: none; } /* ซ่อนขีดสีขาวในจอคอม */
         }
         .sidebar-hidden { transform: translateX(-100%); }
         .sidebar-visible { transform: translateX(0); }
@@ -109,7 +167,7 @@
 
         <div class="flex gap-2 overflow-x-auto scrollbar-hide pointer-events-auto pb-1 sm:flex-wrap justify-center w-full" id="filter-container">
             <button onclick="setFilter('all')" id="btn-all" class="filter-btn bg-gray-800 text-white px-3 py-1.5 rounded-full text-xs font-medium shadow whitespace-nowrap border border-transparent transition cursor-pointer">ทั้งหมด</button>
-            <button onclick="toggleBusSidebar()" id="btn-bus" class="filter-btn bg-white text-gray-600 px-3 py-1.5 rounded-full text-xs font-medium shadow whitespace-nowrap border border-gray-200 hover:bg-blue-50 transition cursor-pointer flex items-center gap-1">
+            <button onclick="toggleBusSidebar()" id="btn-bus" class="filter-btn bg-blue-600 text-white px-3 py-1.5 rounded-full text-xs font-medium shadow whitespace-nowrap border border-gray-200 hover:bg-blue-700 transition cursor-pointer flex items-center gap-1">
                 <i class="fa-solid fa-bus"></i> รถเมล์
             </button>
             <button onclick="setFilter('motorcycle')" id="btn-motorcycle" class="filter-btn bg-white text-gray-600 px-3 py-1.5 rounded-full text-xs font-medium shadow whitespace-nowrap border border-gray-200 hover:bg-gray-50 transition cursor-pointer">🛵 วินมอเตอร์ไซค์</button>
@@ -123,28 +181,31 @@
     </div>
     <div id="map" class="h-full w-full absolute top-16 left-0 z-0"></div>
 
-    <div id="bus-sidebar" class="sidebar-hidden absolute top-16 left-0 h-[calc(100vh-64px)] w-[280px] bg-blue-600 z-[600] flex flex-col shadow-2xl overflow-y-auto">
+    <div id="bus-sidebar" class="sidebar-visible">
+        <div class="drag-handle"></div>
         
-        <div class="bg-blue-800 text-white px-4 py-4 flex items-center gap-3 sticky top-0 z-10 shadow-md cursor-pointer" onclick="toggleBusSidebar()">
-            <i class="fa-solid fa-arrow-right text-xl"></i>
-            <h2 class="text-xl font-bold tracking-wide">เส้นทางรถเมล์</h2>
+        <div class="bg-blue-600 text-white px-4 pb-4 md:py-4 flex items-center justify-between sticky top-0 z-10 cursor-pointer border-b border-blue-500/50" onclick="toggleBusSidebar()">
+            <div class="flex items-center gap-3">
+                <i class="fa-solid fa-bus text-xl"></i>
+                <h2 class="text-xl font-bold tracking-wide">เส้นทางรถเมล์</h2>
+            </div>
+            <i class="fa-solid fa-chevron-down md:hidden text-lg"></i>
+            <i class="fa-solid fa-chevron-left hidden md:block text-lg"></i>
         </div>
 
-        <div class="p-3 flex flex-col gap-4">
+        <div class="p-3 flex flex-col gap-4 overflow-y-auto h-full pb-10">
             <div class="bg-blue-100 rounded-md overflow-hidden shadow-sm">
                 <div class="bg-blue-200 px-3 py-2 flex items-center gap-2 font-bold text-gray-800 text-sm border-b border-blue-300">
                     <i class="fa-solid fa-arrow-down"></i> ผ่านหน้ามอ
                 </div>
-                <div id="bus-front-list" class="p-2 flex flex-col gap-2">
-                    </div>
+                <div id="bus-front-list" class="p-2 flex flex-col gap-2"></div>
             </div>
 
             <div class="bg-blue-100 rounded-md overflow-hidden shadow-sm">
                 <div class="bg-blue-200 px-3 py-2 flex items-center gap-2 font-bold text-gray-800 text-sm border-b border-blue-300">
                     <i class="fa-solid fa-arrow-down"></i> ผ่านหลังมอ (ถ.วงศ์สว่าง)
                 </div>
-                <div id="bus-back-list" class="p-2 flex flex-col gap-2">
-                    </div>
+                <div id="bus-back-list" class="p-2 flex flex-col gap-2"></div>
             </div>
         </div>
     </div>
@@ -170,7 +231,7 @@
         let markers = [];
         let all_data = [];
         let currentFilter = 'all';
-        let isBusSidebarOpen = false;
+        let isBusSidebarOpen = true;
 
         // Icon Mapping สำหรับหมุดบนแผนที่
         const MAP_CONFIG = {
