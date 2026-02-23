@@ -475,22 +475,20 @@
         // ฟังก์ชันเช็คว่าเปิดเป็นแอปแล้วหรือยัง
         const isInStandaloneMode = () => ('standalone' in window.navigator) && (window.navigator.standalone);
 
-        // ✨ แก้ไขส่วนนี้: ตรวจสอบเมื่อโหลดหน้าเว็บเสร็จ
-        document.addEventListener('DOMContentLoaded', () => {
-            if (isLineBrowser()) {
-                // ถ้าเปิดผ่านแอป LINE ให้แสดง SweetAlert เตือนผู้ใช้ทันที
-                Swal.fire({
-                    icon: 'info',
-                    title: 'แนะนำให้เปิดผ่านเบราว์เซอร์หลัก',
-                    html: 'เพื่อการใช้งานที่สมบูรณ์และดาวน์โหลดแอปได้<br><br>กรุณากดปุ่ม <b>⋮</b> (มุมขวาบน) แล้วเลือก<br><b>"เปิดในเบราว์เซอร์เริ่มต้น"</b> (Chrome/Safari)',
-                    confirmButtonText: 'เข้าใจแล้ว',
-                    confirmButtonColor: '#EE3F0B'
-                });
-            } else if (isIos() && !isInStandaloneMode()) {
-                // ถ้าไม่ได้เปิดผ่าน LINE และเป็น iOS ที่ยังไม่ได้ติดตั้งแอป ให้โชว์ Popup iOS ปกติ
-                iosInstallPopup.classList.remove('hidden');
-            }
-        });
+        // ✨ แก้ไขส่วนนี้: เอา DOMContentLoaded ออก เพื่อให้ทำงานทันทีไม่ต้องรอโหลดเสร็จ
+        if (isLineBrowser()) {
+            // ถ้าเปิดผ่านแอป LINE ให้แสดง SweetAlert เตือนผู้ใช้ทันที
+            Swal.fire({
+                icon: 'info',
+                title: 'แนะนำให้เปิดผ่านเบราว์เซอร์หลัก',
+                html: 'เพื่อการใช้งานที่สมบูรณ์และดาวน์โหลดแอปได้<br><br>กรุณากดปุ่ม <b>⋮</b> (มุมขวาบน) แล้วเลือก<br><b>"เปิดในเบราว์เซอร์เริ่มต้น"</b> (Chrome/Safari)',
+                confirmButtonText: 'เข้าใจแล้ว',
+                confirmButtonColor: '#EE3F0B'
+            });
+        } else if (isIos() && !isInStandaloneMode()) {
+            // ถ้าไม่ได้เปิดผ่าน LINE และเป็น iOS ที่ยังไม่ได้ติดตั้งแอป ให้โชว์ Popup iOS ปกติ
+            iosInstallPopup.classList.remove('hidden');
+        }
 
         // ปิด Popup ฝั่ง iOS เมื่อกดปุ่มกากบาท
         closeIosPopupBtn.addEventListener('click', () => {
