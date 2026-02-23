@@ -183,6 +183,8 @@
             L.control.zoom({ position: 'bottomright' }).addTo(map);
 
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 22,
+                maxNativeZoom: 19,
                 attribution: '© OpenStreetMap contributors'
             }).addTo(map);
 
