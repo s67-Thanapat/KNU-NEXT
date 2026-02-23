@@ -374,5 +374,114 @@
             document.getElementById('btn-stop-qr').classList.add('hidden');
         }
     </script>
+    <div id="installPopup" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-[9999] px-4 backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-3xl p-6 w-full max-w-sm text-center shadow-2xl transform transition-transform scale-100">
+            <div class="w-20 h-20 mx-auto rounded-2xl flex items-center justify-center shadow-lg mb-5 overflow-hidden">
+                <img src="icon-192x192.png" alt="KMUTNB NEXT App Icon" class="w-full h-full object-cover">
+            </div>
+            
+            <h3 class="text-xl font-bold text-gray-900 mb-2">ดาวน์โหลดแอปเลย!</h3>
+            <p class="text-gray-500 text-sm mb-6 leading-relaxed">
+            ติดตั้ง KMU-NEXT ลงมือถือเพื่อประสบการณ์ที่ลื่นไหล ใช้งานง่าย และสะดวกกว่าเปิดผ่านเว็บ
+            </p>
+            
+            <div class="flex flex-col gap-3">
+            <button id="installBtn" class="w-full bg-orange-500 text-white font-bold py-3.5 rounded-xl hover:bg-orange-600 active:scale-95 transition-all shadow-md">
+                ดาวน์โหลดแอป
+            </button>
+            <button id="closePopupBtn" class="w-full text-gray-400 font-medium py-2 hover:text-gray-600 transition-colors">
+                ใช้งานผ่านเว็บต่อไป
+            </button>
+            </div>
+        </div>   
+    </div>
+    <div id="iosInstallPopup" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-end justify-center z-[9999] px-4 pb-8 backdrop-blur-sm transition-opacity">
+            <div class="bg-white rounded-3xl p-6 w-full max-w-sm text-center shadow-2xl transform transition-transform scale-100 relative">
+                <button id="closeIosPopupBtn" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors p-2">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+                
+                <div class="w-16 h-16 mx-auto rounded-2xl flex items-center justify-center shadow-lg mb-4 overflow-hidden bg-gray-100">
+                    <img src="icon-192x192.png" alt="KMUTNB NEXT" class="w-full h-full object-contain">
+                </div>
+                
+                <h3 class="text-xl font-bold text-gray-900 mb-2">ติดตั้งแอปบน iPhone</h3>
+                <p class="text-gray-500 text-sm mb-5 leading-relaxed">
+                    เพิ่ม KMU-NEXT ลงในหน้าจอโฮมเพื่อประสบการณ์ที่ลื่นไหล ใช้งานง่าย และสะดวกกว่าเปิดเว็บผ่าน Safari
+                </p>
+                
+                <div class="bg-blue-50/50 rounded-2xl p-5 text-left text-sm text-gray-700 border border-blue-100 shadow-inner">
+                    <div class="flex items-start gap-4 mb-4">
+                        <span class="bg-white text-blue-600 w-7 h-7 rounded-full flex items-center justify-center font-bold shadow-sm flex-shrink-0 mt-0.5 border border-blue-100">1</span>
+                        <div>
+                            <p class="font-medium text-gray-900">แตะปุ่ม Share</p>
+                            <p class="text-xs text-gray-500 mt-1">ที่แถบเมนูด้านล่างสุดของหน้าจอ <i class="fa-solid fa-arrow-up-from-bracket text-blue-500 mx-1"></i></p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-start gap-4">
+                        <span class="bg-white text-blue-600 w-7 h-7 rounded-full flex items-center justify-center font-bold shadow-sm flex-shrink-0 mt-0.5 border border-blue-100">2</span>
+                        <div>
+                            <p class="font-medium text-gray-900">เลือก "เพิ่มไปยังหน้าจอโฮม"</p>
+                            <p class="text-xs text-gray-500 mt-1">เลื่อนลงมาแล้วมองหาไอคอน <i class="fa-regular fa-square-plus mx-1 text-gray-600"></i> (Add to Home Screen)</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+    </div>
+    <script>
+        // --- โค้ดเดิมสำหรับ Android (คงไว้เหมือนเดิม) ---
+        let deferredPrompt;
+        const installPopup = document.getElementById('installPopup');
+        const installBtn = document.getElementById('installBtn');
+        const closePopupBtn = document.getElementById('closePopupBtn');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            installPopup.classList.remove('hidden');
+        });
+
+        installBtn.addEventListener('click', async () => {
+            installPopup.classList.add('hidden');
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                console.log(`ผลการติดตั้ง: ${outcome}`);
+                deferredPrompt = null;
+            }
+        });
+
+        closePopupBtn.addEventListener('click', () => {
+            installPopup.classList.add('hidden');
+        });
+
+        // --- โค้ดใหม่สำหรับ iOS ---
+        const iosInstallPopup = document.getElementById('iosInstallPopup');
+        const closeIosPopupBtn = document.getElementById('closeIosPopupBtn');
+
+        // ฟังก์ชันเช็คว่าเป็นอุปกรณ์ iOS หรือไม่
+        const isIos = () => {
+            const userAgent = window.navigator.userAgent.toLowerCase();
+            return /iphone|ipad|ipod/.test(userAgent);
+        }
+        
+        // ฟังก์ชันเช็คว่าเปิดเป็นแอปแล้วหรือยัง (ถ้าเปิดจากแอปแล้ว Popup จะไม่เด้งกวนใจ)
+        const isInStandaloneMode = () => ('standalone' in window.navigator) && (window.navigator.standalone);
+
+        // ตรวจสอบเมื่อโหลดหน้าเว็บเสร็จ
+        document.addEventListener('DOMContentLoaded', () => {
+            // ถ้าเป็น iOS และ ยังไม่ได้ติดตั้ง (ไม่ได้เปิดผ่าน Standalone)
+            if (isIos() && !isInStandaloneMode()) {
+                // โชว์ Popup สอนติดตั้งสำหรับ iOS
+                iosInstallPopup.classList.remove('hidden');
+            }
+        });
+
+        // ปิด Popup ฝั่ง iOS เมื่อกดปุ่มกากบาท
+        closeIosPopupBtn.addEventListener('click', () => {
+            iosInstallPopup.classList.add('hidden');
+        });
+    </script>
 </body>
 </html>
